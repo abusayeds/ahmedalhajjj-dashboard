@@ -16,7 +16,6 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
-// ─── TOKENS ──────────────────────────────────────────────────────────────────
 const C = {
   bg: "#0D0B14", bg2: "#161221", surface: "#1E1930", card: "#26203A",
   brand: "#8000FF", brandH: "#9333FF",
