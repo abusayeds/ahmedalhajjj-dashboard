@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Plus, Trash2, Check, Loader2 } from "lucide-react";
-import { C, P, M, AD, APrimary, AGhost, AIn, ACard } from "./shared";
+import { C, P, M, AD, APrimary, AGhost, AIn, ACard, PLAN_SIGNAL_TYPE_OPTIONS } from "./shared";
 import { useToast } from "./SuccessToast";
 import {
   useGetAllSubscriptionsQuery,
   useCreateSubscriptionMutation,
   useUpdateSubscriptionMutation,
 } from "../../store/api/subscriptionApi";
+import { useGetSignalTypesQuery } from "../../store/api/signalTypeApi";
 
 interface FeaturePoint {
   id: string;
@@ -42,6 +43,7 @@ export default function EditSubscriptionPlan() {
   const { showToast } = useToast();
 
   const { data: apiResponse, isLoading: isFetchingPlans } = useGetAllSubscriptionsQuery();
+  const { data: signalTypesResponse, isLoading: isFetchingTypes } = useGetSignalTypesQuery();
   const [createSubscription, { isLoading: isCreating }] = useCreateSubscriptionMutation();
   const [updateSubscription, { isLoading: isUpdating }] = useUpdateSubscriptionMutation();
 
@@ -49,13 +51,29 @@ export default function EditSubscriptionPlan() {
   const [name, setName] = useState("");
   const [monthly, setMonthly] = useState("49");
   const [yearly, setYearly] = useState("469");
+  const [maxSignalsPerDay, setMaxSignalsPerDay] = useState("10");
+  const [selectedSignalTypes, setSelectedSignalTypes] = useState<string[]>(["Scalp", "Swing"]);
 
   // Feature points states
   const [featurePoints, setFeaturePoints] = useState<FeaturePoint[]>([]);
   const [newFeatureInput, setNewFeatureInput] = useState("");
   const [rawPlanId, setRawPlanId] = useState<string | null>(null);
 
-  // Derive static emoji & color for preview based on name
+  const signalTypeOptions = (signalTypesResponse?.data || []).length
+    ? (signalTypesResponse?.data || [])
+        .filter((type) => type.isActive)
+        .map((type) => ({ key: type.name, label: type.name }))
+    : [...PLAN_SIGNAL_TYPE_OPTIONS].map((type) => ({
+        key: type.label,
+        label: type.label,
+      }));
+
+  const normalizeTypeName = (value: string) => {
+    const match = signalTypeOptions.find(
+      (option) => option.key.toLowerCase() === value.toLowerCase(),
+    );
+    return match?.key || value.charAt(0).toUpperCase() + value.slice(1);
+  };
   const nameLower = name.toLowerCase();
   let staticEmoji = "⭐";
   let staticColor = C.brand;
@@ -83,6 +101,13 @@ export default function EditSubscriptionPlan() {
         setName(foundPlan.name || "");
         setMonthly(foundPlan.monthly ? String(foundPlan.monthly) : String(foundPlan.price || "49"));
         setYearly(foundPlan.yearly ? String(foundPlan.yearly) : String((foundPlan.price ? foundPlan.price * 10 : 469)));
+        setMaxSignalsPerDay(String(foundPlan.maxSignalsPerDay ?? 10));
+        setSelectedSignalTypes(
+          (foundPlan.signalTypes && foundPlan.signalTypes.length
+            ? foundPlan.signalTypes
+            : ["Scalp", "Swing"]
+          ).map(normalizeTypeName),
+        );
 
         // Build feature points
         const existingFeatures = foundPlan.features || [];
@@ -109,8 +134,22 @@ export default function EditSubscriptionPlan() {
         enabled: idx < 4,
       }));
       setFeaturePoints(points);
+      setMaxSignalsPerDay("10");
+      setSelectedSignalTypes(
+        signalTypeOptions.length
+          ? signalTypeOptions.map((type) => type.key)
+          : ["Scalp", "Swing", "Intraday", "Position", "Long-term"],
+      );
     }
-  }, [id, isEditing, apiResponse]);
+  }, [id, isEditing, apiResponse, signalTypesResponse]);
+
+  const toggleSignalType = (typeKey: string) => {
+    setSelectedSignalTypes((prev) =>
+      prev.some((item) => item.toLowerCase() === typeKey.toLowerCase())
+        ? prev.filter((item) => item.toLowerCase() !== typeKey.toLowerCase())
+        : [...prev, typeKey],
+    );
+  };
 
   const handleAddCustomFeature = () => {
     if (!newFeatureInput || !newFeatureInput.trim()) return;
@@ -151,19 +190,28 @@ export default function EditSubscriptionPlan() {
       return;
     }
 
+    if (selectedSignalTypes.length === 0) {
+      showToast("Please select at least one signal type for this plan!", "warning");
+      return;
+    }
+
+    const planPayload = {
+      name,
+      price: Number(monthly) || 49,
+      monthly,
+      yearly,
+      features: activeFeatures,
+      maxSignalsPerDay: Number(maxSignalsPerDay) || 10,
+      signalTypes: selectedSignalTypes,
+    };
+
     if (isEditing) {
       const targetId = rawPlanId || id;
       if (targetId) {
         try {
           await updateSubscription({
             id: targetId,
-            data: {
-              name,
-              price: Number(monthly) || 49,
-              monthly,
-              yearly,
-              features: activeFeatures,
-            },
+            data: planPayload,
           }).unwrap();
           showToast("Subscription plan updated successfully!", "success");
           navigate("/subscriptions");
@@ -177,13 +225,8 @@ export default function EditSubscriptionPlan() {
     } else {
       try {
         await createSubscription({
-          name,
+          ...planPayload,
           description: `${name} trading signals subscription plan`,
-          price: Number(monthly) || 49,
-          monthly,
-          yearly,
-          features: activeFeatures,
-          maxSignalsPerDay: 10,
         }).unwrap();
         showToast("Subscription plan created successfully!", "success");
         navigate("/subscriptions");
@@ -221,7 +264,7 @@ export default function EditSubscriptionPlan() {
           <AGhost onClick={() => navigate("/subscriptions")}>Cancel</AGhost>
           <APrimary
             onClick={handleSave}
-            disabled={isCreating || isUpdating || isFetchingPlans}
+            disabled={isCreating || isUpdating || isFetchingPlans || isFetchingTypes}
             icon={isCreating || isUpdating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           >
             {isCreating || isUpdating ? "Saving..." : isEditing ? "Save Changes" : "Create Subscription Plan"}
@@ -276,6 +319,85 @@ export default function EditSubscriptionPlan() {
                     onChange={setYearly}
                     type="number"
                   />
+                </div>
+              </div>
+            </ACard>
+
+            <ACard style={{ padding: "24px 28px" }}>
+              <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1, marginBottom: 16, borderBottom: `1px solid ${AD.cardB}`, paddingBottom: 12 }}>
+                Signal Access Settings
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <AIn
+                  label="Max Signals Per Day"
+                  placeholder="10"
+                  value={maxSignalsPerDay}
+                  onChange={setMaxSignalsPerDay}
+                  type="number"
+                />
+
+                <div>
+                  <div style={{ fontFamily: P, fontSize: 11, fontWeight: 600, color: C.tm, letterSpacing: "0.06em", marginBottom: 10 }}>
+                    ALLOWED SIGNAL TYPES
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {signalTypeOptions.map((typeOption) => {
+                      const enabled = selectedSignalTypes.some(
+                        (type) => type.toLowerCase() === typeOption.key.toLowerCase(),
+                      );
+                      return (
+                        <div
+                          key={typeOption.key}
+                          onClick={() => toggleSignalType(typeOption.key)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "10px 14px",
+                            background: enabled ? "rgba(128,0,255,0.08)" : "rgba(255,255,255,0.015)",
+                            border: `1px solid ${enabled ? "rgba(128,0,255,0.25)" : AD.cardB}`,
+                            borderRadius: 10,
+                            cursor: "pointer",
+                            opacity: enabled ? 1 : 0.55,
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <div
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 5,
+                                border: `1px solid ${enabled ? C.brand : AD.inpB}`,
+                                background: enabled ? C.brand : "transparent",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {enabled && <Check size={12} color="#fff" strokeWidth={3} />}
+                            </div>
+                            <span style={{ fontFamily: P, fontSize: 13, color: enabled ? C.t1 : C.tm }}>
+                              {typeOption.label}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontFamily: M,
+                              fontSize: 10,
+                              padding: "3px 9px",
+                              borderRadius: 100,
+                              background: enabled ? "rgba(0,208,132,0.12)" : "rgba(100,116,139,0.12)",
+                              color: enabled ? C.buy : C.closed,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {enabled ? "Included" : "Excluded"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </ACard>

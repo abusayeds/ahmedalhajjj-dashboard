@@ -2,6 +2,11 @@ import { configureStore } from "@reduxjs/toolkit";
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 import authReducer from "./slices/authSlice";
 import { baseApi } from "./api/baseApi";
+import "./api/signalApi";
+import "./api/signalTypeApi";
+import "./api/postApi";
+import "./api/notificationApi";
+import "./api/dashboardApi";
 
 export const store = configureStore({
   reducer: {

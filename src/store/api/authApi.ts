@@ -60,6 +60,14 @@ export const authApi = baseApi.injectEndpoints({
       }),
       providesTags: ["Profile"],
     }),
+    updateProfile: builder.mutation<any, { name?: string; email?: string; firstName?: string; lastName?: string }>({
+      query: (body) => ({
+        url: "/api/v1/user/update-profile",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["Profile"],
+    }),
   }),
 });
 
@@ -71,4 +79,5 @@ export const {
   useChangePasswordMutation,
   useGetProfileQuery,
   useLazyGetProfileQuery,
+  useUpdateProfileMutation,
 } = authApi;

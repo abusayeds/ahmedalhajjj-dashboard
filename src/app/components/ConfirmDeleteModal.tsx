@@ -1,5 +1,28 @@
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle } from "lucide-react";
 import { C, P, M, AD, AGhost, APrimary } from "./shared";
+
+function useLockBodyScroll() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+}
+
+function ModalPortal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useLockBodyScroll();
+
+  return createPortal(
+    <div className="a-modal-overlay" style={{ overflowY: "auto" }} onClick={onClose}>
+      {children}
+    </div>,
+    document.body,
+  );
+}
 
 export function ConfirmDeleteModal({ title, message, onConfirm, onCancel, loading = false }: {
   title?: string;
@@ -9,8 +32,8 @@ export function ConfirmDeleteModal({ title, message, onConfirm, onCancel, loadin
   loading?: boolean;
 }) {
   return (
-    <div className="a-modal-overlay" onClick={onCancel}>
-      <div className="a-modal a-confirm-delete" onClick={e => e.stopPropagation()} style={{ width: 460, padding: "32px" }}>
+    <ModalPortal onClose={onCancel}>
+      <div className="a-modal a-confirm-delete" onClick={e => e.stopPropagation()} style={{ width: 460, padding: "32px", margin: "auto" }}>
         <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(255,90,107,0.1)", border: "1px solid rgba(255,90,107,0.25)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
           <AlertCircle size={28} color={C.sell} />
         </div>
@@ -21,7 +44,7 @@ export function ConfirmDeleteModal({ title, message, onConfirm, onCancel, loadin
           <APrimary danger loading={loading} onClick={onConfirm}>Delete</APrimary>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
@@ -37,8 +60,8 @@ export function ConfirmActionModal({ title, message, onConfirm, onCancel, loadin
   iconBg?: string;
 }) {
   return (
-    <div className="a-modal-overlay" onClick={onCancel}>
-      <div className="a-modal a-confirm-delete" onClick={e => e.stopPropagation()} style={{ width: 460, padding: "32px" }}>
+    <ModalPortal onClose={onCancel}>
+      <div className="a-modal a-confirm-delete" onClick={e => e.stopPropagation()} style={{ width: 460, padding: "32px", margin: "auto" }}>
         <div style={{ width: 56, height: 56, borderRadius: 16, background: iconBg || "rgba(128,0,255,0.1)", border: `1px solid ${iconColor || C.brand}30`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
           {icon || <AlertCircle size={28} color={iconColor || C.brand} />}
         </div>
@@ -49,6 +72,6 @@ export function ConfirmActionModal({ title, message, onConfirm, onCancel, loadin
           <APrimary loading={loading} onClick={onConfirm}>{confirmLabel}</APrimary>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

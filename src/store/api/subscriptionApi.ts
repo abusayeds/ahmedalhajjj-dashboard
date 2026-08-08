@@ -33,6 +33,13 @@ export interface ITrialConfig {
   promoDuration: string;
   trialOn: boolean;
   trialDuration: string;
+  claimedCount?: number;
+  subscriptionStats?: {
+    vip: number;
+    forex: number;
+    crypto: number;
+    total: number;
+  };
 }
 
 export interface SubscriptionApiResponse {
@@ -58,9 +65,9 @@ export interface TrialConfigApiResponse {
 
 export const subscriptionApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAllSubscriptions: builder.query<SubscriptionApiResponse, void>({
-      query: () => ({
-        url: "/api/v1/subscription",
+    getAllSubscriptions: builder.query<SubscriptionApiResponse, boolean | void>({
+      query: (includeDisabled) => ({
+        url: includeDisabled ? "/api/v1/subscription?includeDisabled=true" : "/api/v1/subscription",
         method: "GET",
       }),
       providesTags: ["Subscription"],
@@ -78,7 +85,7 @@ export const subscriptionApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Subscription"],
+      invalidatesTags: ["Subscription", "Dashboard"],
     }),
     updateSubscription: builder.mutation<SingleSubscriptionApiResponse, { id: string; data: Partial<ISubscriptionPlan> }>({
       query: ({ id, data }) => ({
@@ -86,14 +93,14 @@ export const subscriptionApi = baseApi.injectEndpoints({
         method: "PATCH",
         body: data,
       }),
-      invalidatesTags: ["Subscription"],
+      invalidatesTags: ["Subscription", "Dashboard"],
     }),
     deleteSubscription: builder.mutation<SingleSubscriptionApiResponse, string>({
       query: (id) => ({
         url: `/api/v1/subscription/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Subscription"],
+      invalidatesTags: ["Subscription", "Dashboard"],
     }),
     getTrialConfig: builder.query<TrialConfigApiResponse, void>({
       query: () => ({
@@ -108,7 +115,7 @@ export const subscriptionApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Subscription"],
+      invalidatesTags: ["Subscription", "Dashboard"],
     }),
   }),
 });

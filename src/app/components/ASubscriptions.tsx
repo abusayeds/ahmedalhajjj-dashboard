@@ -17,7 +17,6 @@ import {
   useGetTrialConfigQuery,
   useUpdateTrialConfigMutation,
 } from "../../store/api/subscriptionApi";
-import { useGetAllUsersQuery } from "../../store/api/userApi";
 
 type PlanData = {
   id: string;
@@ -34,90 +33,13 @@ type PlanData = {
   created: string;
 };
 
-const CLIENT_DEFAULT_VIP_FEATURES = [
-  "All signal types: Scalp, Swing, and Long-term",
-  "Up to 10 signals per day (Forex & Crypto)",
-  "Entry/Exit alerts with Stop-Loss protection",
-  "Daily Gold (Metals) signals",
-  "Advanced technical analysis reports for Forex & Crypto markets",
-  "Market sentiment analysis",
-  "Economic calendar updates (news & events)",
-  "24/7 Premium Support",
-  "Early access to new features",
-  "Cancel anytime • No commitment required"
-];
-
-const CLIENT_DEFAULT_FOREX_FEATURES = [
-  "Scalp and Swing signals",
-  "Up to 5 daily signals",
-  "3–5 Swing signals per week",
-  "Daily Gold (Metals) signals",
-  "Entry/Exit alerts with Stop-Loss protection",
-  "Access to major Forex pairs",
-  "Advanced support",
-  "Cancel anytime • No commitment required"
-];
-
-const CLIENT_DEFAULT_CRYPTO_FEATURES = [
-  "Scalp and Swing signals",
-  "Up to 5 daily signals",
-  "3–5 Swing signals per week",
-  "Real-time notifications",
-  "Entry/Exit alerts with Stop-Loss protection",
-  "Access to major Crypto pairs",
-  "Advanced support",
-  "Cancel anytime • No commitment required"
-];
-
-const INITIAL_PLANS: PlanData[] = [
-  {
-    id: "vip",
-    name: "VIP Plan",
-    emoji: "👑",
-    monthly: "79",
-    yearly: "699",
-    color: C.brand,
-    subs: 0,
-    status: "Active",
-    features: CLIENT_DEFAULT_VIP_FEATURES,
-    updated: "Recently",
-    created: "Jan 12, 2026"
-  },
-  {
-    id: "forex",
-    name: "Forex Pro",
-    emoji: "💱",
-    monthly: "49",
-    yearly: "469",
-    color: C.gold,
-    subs: 0,
-    status: "Active",
-    features: CLIENT_DEFAULT_FOREX_FEATURES,
-    updated: "Recently",
-    created: "Jan 15, 2026"
-  },
-  {
-    id: "crypto",
-    name: "Crypto Pro",
-    emoji: "₿",
-    monthly: "39",
-    yearly: "369",
-    color: "#60A5FA",
-    subs: 0,
-    status: "Active",
-    features: CLIENT_DEFAULT_CRYPTO_FEATURES,
-    updated: "Recently",
-    created: "Feb 02, 2026"
-  },
-];
 
 export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string) => void }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // RTK Query API Hooks
-  const { data: apiResponse, isLoading: isApiLoading, isFetching, refetch } = useGetAllSubscriptionsQuery();
-  const { data: usersResponse } = useGetAllUsersQuery();
+  // RTK Query API Hooks (Pass true to fetch all plans including disabled for Admin view)
+  const { data: apiResponse, isLoading: isApiLoading, isFetching, refetch } = useGetAllSubscriptionsQuery(true);
   const { data: trialConfigRes } = useGetTrialConfigQuery();
 
   const [updateSubscription, { isLoading: isUpdatingApi }] = useUpdateSubscriptionMutation();
@@ -171,20 +93,17 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
 
   // Calculate REAL subscriber counts per plan from database
   const realSubscriberStats = useMemo(() => {
-    if (usersResponse?.data && Array.isArray(usersResponse.data)) {
-      const userList = usersResponse.data;
-      const vip = userList.filter((u: any) => u.plan === "VIP" && u.status !== "Suspended").length;
-      const forex = userList.filter((u: any) => u.plan === "Forex" && u.status !== "Suspended").length;
-      const crypto = userList.filter((u: any) => u.plan === "Crypto" && u.status !== "Suspended").length;
+    const stats = trialConfigRes?.data?.subscriptionStats;
+    if (stats) {
       return {
-        total: userList.length,
-        vip,
-        forex,
-        crypto,
+        total: stats.total,
+        vip: stats.vip,
+        forex: stats.forex,
+        crypto: stats.crypto,
       };
     }
     return { total: 0, vip: 0, forex: 0, crypto: 0 };
-  }, [usersResponse]);
+  }, [trialConfigRes]);
 
   // Map API response to Plans with REAL subscriber counts
   const plans = useMemo(() => {
@@ -194,23 +113,19 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
         let emoji = p.emoji || "⭐";
         let color = p.color || C.brand;
         let realSubs = 0;
-        let defaultFeatures = CLIENT_DEFAULT_VIP_FEATURES;
 
         if (nameLower.includes("vip")) {
           emoji = "👑";
           color = C.brand;
           realSubs = realSubscriberStats.vip;
-          defaultFeatures = CLIENT_DEFAULT_VIP_FEATURES;
         } else if (nameLower.includes("forex")) {
           emoji = "💱";
           color = C.gold;
           realSubs = realSubscriberStats.forex;
-          defaultFeatures = CLIENT_DEFAULT_FOREX_FEATURES;
         } else if (nameLower.includes("crypto")) {
           emoji = "₿";
           color = "#60A5FA";
           realSubs = realSubscriberStats.crypto;
-          defaultFeatures = CLIENT_DEFAULT_CRYPTO_FEATURES;
         }
 
         return {
@@ -218,25 +133,19 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
           rawId: p._id,
           name: p.name,
           emoji,
-          monthly: p.monthly ? String(p.monthly) : String(p.price || "49"),
-          yearly: p.yearly ? String(p.yearly) : String((p.price ? p.price * 10 : 469)),
+          monthly: p.monthly ? String(p.monthly) : String(p.price || "0"),
+          yearly: p.yearly ? String(p.yearly) : String((p.price ? Number(p.price) * 10 : 0)),
           color,
           subs: realSubs,
           status: p.isActive !== false ? "Active" : "Hidden",
-          features: p.features && p.features.length > 0 ? p.features : defaultFeatures,
-          updated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "Recently",
-          created: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "Jan 12, 2026",
+          features: p.features && p.features.length > 0 ? p.features : [],
+          updated: p.updatedAt ? new Date(p.updatedAt).toLocaleDateString() : "—",
+          created: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—",
         };
       });
     }
 
-    return INITIAL_PLANS.map((p) => {
-      let realSubs = 0;
-      if (p.id === "vip") realSubs = realSubscriberStats.vip;
-      if (p.id === "forex") realSubs = realSubscriberStats.forex;
-      if (p.id === "crypto") realSubs = realSubscriberStats.crypto;
-      return { ...p, subs: realSubs };
-    });
+    return [];
   }, [apiResponse, realSubscriberStats]);
 
   const handleConfirmToggle = async () => {
@@ -277,7 +186,7 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
     }
   };
 
-  const claimedCount = realSubscriberStats.total;
+  const claimedCount = trialConfigRes?.data?.claimedCount ?? 0;
   const promoProgressPercent = Math.min(100, Math.round((claimedCount / promoLimit) * 100));
 
   return (
@@ -326,6 +235,10 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
         <div style={{ padding: 80, textAlign: "center", color: C.tm, fontFamily: P, fontSize: 14 }}>
           <Loader2 size={28} className="animate-spin" style={{ margin: "0 auto 12px", color: C.brand }} />
           Loading subscription plans from server API...
+        </div>
+      ) : plans.length === 0 ? (
+        <div style={{ padding: 80, textAlign: "center", color: C.tm, fontFamily: P, fontSize: 14 }}>
+          No subscription plans found. Click <strong>Create Plan</strong> to add your first plan.
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 24, marginBottom: 40 }}>

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X, ChevronRight, TrendingDown,
   TrendingUp as TUp,
@@ -42,23 +43,59 @@ export const PERF_DATA = [
 ];
 
 export type SignalData = {
-  id: number; asset: string; cat: string; type: string; dir: "BUY" | "SELL";
+  id: string; asset: string; cat: string; type: string; dir: "BUY" | "SELL";
   entry: string; sl: string; tp1: string; tp2: string; tp3: string;
   status: string; pub: string;
 };
 
+export const SIGNAL_TYPE_OPTIONS = [
+  { l: "Scalp", v: "Scalp" },
+  { l: "Swing Trade", v: "Swing" },
+  { l: "Intraday", v: "Intraday" },
+  { l: "Position", v: "Position" },
+  { l: "Long-term", v: "Long-term" },
+] as const;
+
+export const PLAN_SIGNAL_TYPE_OPTIONS = [
+  { key: "scalp", label: "Scalp" },
+  { key: "swing", label: "Swing" },
+  { key: "intraday", label: "Intraday" },
+  { key: "position", label: "Position" },
+  { key: "long-term", label: "Long-term" },
+] as const;
+
+export const matchSignalTypeOption = (
+  value?: string,
+  options: ReadonlyArray<{ l: string; v: string }> = SIGNAL_TYPE_OPTIONS,
+) => {
+  const raw = String(value || "").trim();
+  if (!raw) return options[0]?.v || "Swing";
+
+  const exact = options.find(
+    (option) => option.v.toLowerCase() === raw.toLowerCase(),
+  );
+  if (exact) return exact.v;
+
+  const partial = options.find((option) =>
+    raw.toLowerCase().includes(option.v.toLowerCase()),
+  );
+  if (partial) return partial.v;
+
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+};
+
 export const INITIAL_SIGNALS: SignalData[] = [
-  { id: 1, asset: "BTC/USDT", cat: "Crypto", type: "Swing", dir: "BUY", entry: "67,420.00", sl: "65,800.00", tp1: "69,000.00", tp2: "71,500.00", tp3: "74,000.00", status: "Active", pub: "Jul 23 · 09:15" },
-  { id: 2, asset: "GOLD/USD", cat: "Commodity", type: "Intraday", dir: "BUY", entry: "2,847.00", sl: "2,820.00", tp1: "2,875.00", tp2: "2,900.00", tp3: "2,930.00", status: "Active", pub: "Jul 23 · 11:00" },
-  { id: 3, asset: "EUR/USD", cat: "Forex", type: "Swing", dir: "SELL", entry: "1.0842", sl: "1.0880", tp1: "1.0810", tp2: "1.0775", tp3: "1.0740", status: "Active", pub: "Jul 23 · 13:30" },
-  { id: 4, asset: "NAS100", cat: "Index", type: "Scalp", dir: "BUY", entry: "19,840.00", sl: "19,600.00", tp1: "20,100.00", tp2: "20,400.00", tp3: "—", status: "Closed", pub: "Jul 22 · 08:00" },
-  { id: 5, asset: "GBP/JPY", cat: "Forex", type: "Swing", dir: "BUY", entry: "196.84", sl: "195.50", tp1: "198.20", tp2: "199.50", tp3: "—", status: "Active", pub: "Jul 21 · 14:00" },
-  { id: 6, asset: "ETH/USDT", cat: "Crypto", type: "Intraday", dir: "SELL", entry: "3,280.00", sl: "3,350.00", tp1: "3,200.00", tp2: "3,150.00", tp3: "3,080.00", status: "Draft", pub: "—" },
-  { id: 7, asset: "SPX500", cat: "Index", type: "Swing", dir: "SELL", entry: "5,842.00", sl: "5,890.00", tp1: "5,800.00", tp2: "5,760.00", tp3: "—", status: "Scheduled", pub: "Jul 24 · 09:00" },
+  { id: "1", asset: "BTC/USDT", cat: "Crypto", type: "Swing", dir: "BUY", entry: "67,420.00", sl: "65,800.00", tp1: "69,000.00", tp2: "71,500.00", tp3: "74,000.00", status: "Active", pub: "Jul 23 · 09:15" },
+  { id: "2", asset: "GOLD/USD", cat: "Commodity", type: "Intraday", dir: "BUY", entry: "2,847.00", sl: "2,820.00", tp1: "2,875.00", tp2: "2,900.00", tp3: "2,930.00", status: "Active", pub: "Jul 23 · 11:00" },
+  { id: "3", asset: "EUR/USD", cat: "Forex", type: "Swing", dir: "SELL", entry: "1.0842", sl: "1.0880", tp1: "1.0810", tp2: "1.0775", tp3: "1.0740", status: "Active", pub: "Jul 23 · 13:30" },
+  { id: "4", asset: "NAS100", cat: "Index", type: "Scalp", dir: "BUY", entry: "19,840.00", sl: "19,600.00", tp1: "20,100.00", tp2: "20,400.00", tp3: "—", status: "Closed", pub: "Jul 22 · 08:00" },
+  { id: "5", asset: "GBP/JPY", cat: "Forex", type: "Swing", dir: "BUY", entry: "196.84", sl: "195.50", tp1: "198.20", tp2: "199.50", tp3: "—", status: "Active", pub: "Jul 21 · 14:00" },
+  { id: "6", asset: "ETH/USDT", cat: "Crypto", type: "Intraday", dir: "SELL", entry: "3,280.00", sl: "3,350.00", tp1: "3,200.00", tp2: "3,150.00", tp3: "3,080.00", status: "Draft", pub: "—" },
+  { id: "7", asset: "SPX500", cat: "Index", type: "Swing", dir: "SELL", entry: "5,842.00", sl: "5,890.00", tp1: "5,800.00", tp2: "5,760.00", tp3: "—", status: "Scheduled", pub: "Jul 24 · 09:00" },
 ];
 
 export type PostData = {
-  id: number; img: string; title: string; cat: string;
+  id: string; img: string; title: string; cat: string;
   likes: number; comments: number; date: string; status: string;
   body?: string;
 };
@@ -88,7 +125,7 @@ export const INITIAL_USERS: UserData[] = [
 ];
 
 export type NotifData = {
-  id: number; title: string; audience: string; sent: string;
+  id: string; title: string; audience: string; sent: string;
   reach: number; opened: number; status?: string; message?: string;
 };
 
@@ -188,19 +225,46 @@ export function ATog({ on, onChange }: { on: boolean; onChange: (v: boolean) => 
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
+function useLockBodyScroll() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+}
+
 export function AModal({ title, sub, onClose, children, width = 580 }: { title: string; sub?: string; onClose: () => void; children: React.ReactNode; width?: number }) {
-  return <div className="a-modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", backdropFilter: "blur(14px)", zIndex: 3000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={onClose}>
-    <div className="a-modal" onClick={e => e.stopPropagation()} style={{ background: "#0F0C20", border: `1px solid rgba(255,255,255,0.09)`, borderRadius: 20, width, maxWidth: "96vw", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: `0 40px 100px rgba(0,0,0,0.7),0 0 0 1px ${C.brand}1A` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", borderBottom: `1px solid ${AD.cardB}`, background: "rgba(255,255,255,0.02)", flexShrink: 0 }}>
-        <div>
-          <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1, letterSpacing: "-0.2px" }}>{title}</div>
-          {sub && <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>{sub}</div>}
+  useLockBodyScroll();
+
+  return createPortal(
+    <div className="a-modal-overlay" style={{ overflowY: "auto" }} onClick={onClose}>
+      <div
+        className="a-modal"
+        onClick={e => e.stopPropagation()}
+        style={{
+          width,
+          maxWidth: "96vw",
+          maxHeight: "90vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          margin: "auto",
+        }}
+      >
+        <div className="a-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 24px", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1, letterSpacing: "-0.2px" }}>{title}</div>
+            {sub && <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>{sub}</div>}
+          </div>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, background: AD.inp, border: `1px solid ${AD.cardB}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.tm} /></button>
         </div>
-        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, background: AD.inp, border: `1px solid ${AD.cardB}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><X size={13} color={C.tm} /></button>
+        <div className="a-tscroll" style={{ flex: 1, overflowY: "auto", padding: 24 }}>{children}</div>
       </div>
-      <div className="a-tscroll" style={{ flex: 1, overflowY: "auto", padding: 24 }}>{children}</div>
-    </div>
-  </div>;
+    </div>,
+    document.body,
+  );
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────

@@ -7,26 +7,20 @@ interface AuthState {
   isAuthenticated: boolean;
 }
 
-const defaultAdminUser = {
-  id: "admin-1",
-  name: "Ahmed Alhajji",
-  email: "admin@elitetrading.io",
-  role: "admin",
-};
+const storedToken = localStorage.getItem("admin_token");
+let storedUser: any = null;
 
-const initialToken = localStorage.getItem("admin_token") || "demo_admin_token";
-const initialUserStr = localStorage.getItem("admin_user");
-let initialUser = defaultAdminUser;
 try {
-  initialUser = initialUserStr ? JSON.parse(initialUserStr) : defaultAdminUser;
+  const rawUser = localStorage.getItem("admin_user");
+  storedUser = rawUser ? JSON.parse(rawUser) : null;
 } catch {
-  initialUser = defaultAdminUser;
+  storedUser = null;
 }
 
 const initialState: AuthState = {
-  token: initialToken,
-  user: initialUser,
-  isAuthenticated: true,
+  token: storedToken,
+  user: storedUser,
+  isAuthenticated: Boolean(storedToken),
 };
 
 const authSlice = createSlice({

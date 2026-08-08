@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { logout } from "../slices/authSlice";
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: "http://localhost:2002",
+  baseUrl: "https://sayed2002.sobhoy.com",
   prepareHeaders: (headers) => {
     const token = localStorage.getItem("admin_token");
     if (token) {
@@ -27,6 +27,6 @@ const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
 export const baseApi = createApi({
   reducerPath: "baseApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["User", "Profile", "Management", "Subscription", "Coupon"],
+  tagTypes: ["User", "Profile", "Management", "Subscription", "Coupon", "Signal", "SignalType", "Post", "Notification", "Dashboard"],
   endpoints: () => ({}),
 });
