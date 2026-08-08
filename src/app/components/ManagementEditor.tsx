@@ -6,6 +6,7 @@ import {
 import { C, P, M, AD, APrimary, ACard } from "./shared";
 import { useToast } from "./SuccessToast";
 import { useGetManagementQuery, useUpdateManagementMutation } from "../../store/api/managementApi";
+import { API_BASE_URL } from "../../config/env";
 
 interface ManagementEditorProps {
   type: "terms" | "about" | "privacy";
@@ -103,7 +104,7 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
 
       {error && (
         <div style={{ marginBottom: 16, background: "rgba(255,90,107,0.1)", border: "1px solid rgba(255,90,107,0.25)", borderRadius: 12, padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, fontFamily: P, fontSize: 13, color: C.sell }}>
-          <AlertCircle size={16} color={C.sell} /> Backend server offline on http://localhost:2002. You can still edit and preview content locally.
+          <AlertCircle size={16} color={C.sell} /> Backend server offline on {API_BASE_URL}. You can still edit and preview content locally.
         </div>
       )}
 

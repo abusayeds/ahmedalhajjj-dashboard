@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const API_BASE_URL = "http://localhost:2002";
+import { API_BASE_URL } from "../../config/env";
 
 let onUnauthorizedCallback: (() => void) | null = null;
 
