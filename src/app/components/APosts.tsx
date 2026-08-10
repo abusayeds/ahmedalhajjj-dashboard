@@ -9,6 +9,8 @@ import {
 } from "./shared";
 import { ConfirmDeleteModal, ConfirmActionModal } from "./ConfirmDeleteModal";
 import { useToast } from "./SuccessToast";
+import PostCoverUpload from "./PostCoverUpload";
+import { resolveMediaUrl } from "../../config/env";
 import {
   mapApiPost,
   useCreatePostMutation,
@@ -18,6 +20,7 @@ import {
   useSchedulePostMutation,
   useUpdatePostMutation,
 } from "../../store/api/postApi";
+import { getTodayDateTimeLocal } from "../utils/signalDate";
 
 type PostForm = {
   title: string;
@@ -32,7 +35,7 @@ const emptyForm = (): PostForm => ({
   title: "",
   body: "",
   cat: "Market Update",
-  schedule: "",
+  schedule: getTodayDateTimeLocal(),
   mode: "publish",
   coverImage: "",
 });
@@ -55,21 +58,21 @@ function PostFormFields({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-      <div style={{ border: `2px dashed ${AD.cardB}`, borderRadius: 12, height: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", background: "rgba(255,255,255,0.01)", transition: "all 0.2s" }} className="a-btn">
-        <Image size={22} color={C.td} />
-        <span style={{ fontFamily: P, fontSize: 12, color: C.td }}>Upload banner image</span>
-        <span style={{ fontFamily: P, fontSize: 10, color: C.td }}>PNG or JPG · 1200×480px recommended</span>
-      </div>
-      <AIn label="Cover Image URL (optional)" placeholder="https://..." value={form.coverImage} onChange={(v) => setForm({ ...form, coverImage: v })} />
+      <PostCoverUpload value={form.coverImage} onChange={(coverImage) => setForm({ ...form, coverImage })} />
       <AIn label="Post Title" placeholder="Write a compelling headline…" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
       <ATa label="Content" placeholder="Write the post body…" value={form.body} onChange={(v) => setForm({ ...form, body: v })} rows={4} />
       <ASel label="Category" value={form.cat} onChange={(v) => setForm({ ...form, cat: v })} opts={[{ l: "Market Update", v: "Market Update" }, { l: "Education", v: "Education" }, { l: "News", v: "News" }, { l: "Announcement", v: "Announcement" }]} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 13 }}>
-        <ASel label="Publish Mode" value={form.mode} onChange={(v) => setForm({ ...form, mode: v as "publish" | "schedule" })} opts={[{ l: "Publish Now", v: "publish" }, { l: "Schedule for Later", v: "schedule" }]} />
+        <ASel label="Publish Mode" value={form.mode} onChange={(v) => setForm({ ...form, mode: v as "publish" | "schedule", schedule: v === "schedule" ? (form.schedule || getTodayDateTimeLocal()) : form.schedule })} opts={[{ l: "Publish Now", v: "publish" }, { l: "Schedule for Later", v: "schedule" }]} />
         {form.mode === "schedule" && <AIn label="Schedule Time" placeholder="2026-08-09T09:00" value={form.schedule} onChange={(v) => setForm({ ...form, schedule: v })} type="datetime-local" />}
       </div>
       {form.title && <div style={{ background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 11, padding: "16px 18px" }}>
         <div style={{ fontFamily: M, fontSize: 9, color: C.td, letterSpacing: "0.12em", marginBottom: 12 }}>PREVIEW</div>
+        {form.coverImage && (
+          <div style={{ borderRadius: 10, overflow: "hidden", marginBottom: 12, height: 140 }}>
+            <img src={resolveMediaUrl(form.coverImage)} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+        )}
         <div style={{ fontFamily: P, fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 6 }}>{form.title}</div>
         <div style={{ fontFamily: P, fontSize: 12, color: C.tm, lineHeight: 1.5 }}>{form.body || "Post content will appear here..."}</div>
         <div style={{ marginTop: 10 }}><span style={{ fontFamily: P, fontSize: 11, color: C.td }}>Category: {form.cat}</span></div>
@@ -94,7 +97,7 @@ export default function APosts() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const [form, setForm] = useState<PostForm>(emptyForm());
-  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleDate, setScheduleDate] = useState(getTodayDateTimeLocal());
 
   const { data, isLoading, isFetching, refetch } = useGetPostsQuery({
     category: catFilter,
@@ -120,7 +123,7 @@ export default function APosts() {
       title: p.title,
       body: p.body || "",
       cat: p.cat,
-      schedule: "",
+      schedule: getTodayDateTimeLocal(),
       mode: "publish",
       coverImage: p.img || "",
     });
@@ -196,7 +199,7 @@ export default function APosts() {
       )}
       {posts.map((post, i) => <div key={post.id} className="a-row" style={{ display: "grid", gridTemplateColumns: COLS, padding: "24px 28px", borderBottom: i < posts.length - 1 ? `1px solid ${AD.cardB}` : "none", alignItems: "center" }}>
         <div style={{ width: 64, height: 44, borderRadius: 10, background: C.surface, overflow: "hidden", flexShrink: 0 }}>
-          {post.img ? <img src={post.img} alt={post.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Image size={18} color={C.td} /></div>}
+          {post.img ? <img src={resolveMediaUrl(post.img)} alt={post.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Image size={18} color={C.td} /></div>}
         </div>
         <div style={{ paddingRight: 24 }}>
           <div style={{ fontFamily: P, fontSize: 15, fontWeight: 600, color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{post.title}</div>
@@ -210,7 +213,7 @@ export default function APosts() {
           <IconBtn icon={<Eye size={14} color={C.t2} />} title="Preview" onClick={() => setPreviewTarget(post)} />
           <IconBtn icon={<Pencil size={14} color={C.t2} />} title="Edit" onClick={() => openEdit(post)} />
           {post.status === "Draft" && <IconBtn icon={<Send size={14} color={C.buy} />} title="Publish" onClick={() => setPublishTarget(post)} bg="rgba(0,208,132,0.08)" />}
-          {post.status === "Draft" && <IconBtn icon={<Calendar size={14} color="#60A5FA" />} title="Schedule" onClick={() => { setScheduleDate(""); setScheduleTarget(post); }} bg="rgba(96,165,250,0.08)" />}
+          {post.status === "Draft" && <IconBtn icon={<Calendar size={14} color="#60A5FA" />} title="Schedule" onClick={() => { setScheduleDate(getTodayDateTimeLocal()); setScheduleTarget(post); }} bg="rgba(96,165,250,0.08)" />}
           <IconBtn icon={<Trash2 size={14} color={C.sell} />} title="Delete" onClick={() => setDeleteTarget(post)} />
         </div>
       </div>)}
@@ -243,7 +246,7 @@ export default function APosts() {
 
     {previewTarget && <AModal title="Post Preview" sub={previewTarget.cat} onClose={() => setPreviewTarget(null)} width={640}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {previewTarget.img && <div style={{ borderRadius: 12, overflow: "hidden", height: 200 }}><img src={previewTarget.img} alt={previewTarget.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
+        {previewTarget.img && <div style={{ borderRadius: 12, overflow: "hidden", height: 200 }}><img src={resolveMediaUrl(previewTarget.img)} alt={previewTarget.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>}
         <div style={{ fontFamily: P, fontSize: 22, fontWeight: 700, color: C.t1, lineHeight: 1.3 }}>{previewTarget.title}</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <Chip label={previewTarget.cat} type="brand" />

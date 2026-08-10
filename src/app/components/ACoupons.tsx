@@ -15,6 +15,7 @@ import {
   useUpdateCouponMutation,
   useDeleteCouponMutation,
 } from "../../store/api/couponApi";
+import { getTodayDateInput, toDateInputValue } from "../utils/signalDate";
 
 export default function ACoupons() {
   const { showToast } = useToast();
@@ -32,9 +33,9 @@ export default function ACoupons() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [q, setQ] = useState("");
 
-  const [form, setForm] = useState({ code: "", discount: "", expiry: "", limit: "" });
+  const [form, setForm] = useState({ code: "", discount: "", expiry: getTodayDateInput(), limit: "" });
 
-  const resetForm = () => setForm({ code: "", discount: "", expiry: "", limit: "" });
+  const resetForm = () => setForm({ code: "", discount: "", expiry: getTodayDateInput(), limit: "" });
 
   // Map 100% dynamic API coupons directly from database
   const coupons = useMemo(() => {
@@ -47,6 +48,8 @@ export default function ACoupons() {
           code: c.code,
           discount: discStr,
           rawDiscount: c.discount,
+          expiryDate: c.expiryDate ? new Date(c.expiryDate).toISOString() : undefined,
+          expiryInput: c.expiryDate ? toDateInputValue(c.expiryDate) : getTodayDateInput(),
           expiry: c.expiry || (c.expiryDate ? new Date(c.expiryDate).toLocaleDateString() : "No Expiry"),
           limit: c.limit || 100,
           used: c.used || c.usedCount || 0,
@@ -82,7 +85,7 @@ export default function ACoupons() {
         discount: discNum,
         discountType: "percentage",
         limit: Number(form.limit) || 100,
-        expiry: form.expiry || "Aug 30, 2026",
+        expiry: form.expiry,
         expiryDate: form.expiry ? new Date(form.expiry) : undefined,
         status: "Active",
       }).unwrap();
@@ -112,7 +115,7 @@ export default function ACoupons() {
           code: form.code.toUpperCase().trim(),
           discount: discNum,
           limit: Number(form.limit) || editTarget.limit,
-          expiry: form.expiry || editTarget.expiry,
+          expiry: form.expiry,
           expiryDate: form.expiry ? new Date(form.expiry) : undefined,
         },
       }).unwrap();
@@ -269,7 +272,7 @@ export default function ACoupons() {
                           setForm({
                             code: cp.code,
                             discount: String(cp.discount).replace("%", ""),
-                            expiry: cp.expiry === "No Expiry" ? "" : cp.expiry,
+                            expiry: cp.expiryInput || getTodayDateInput(),
                             limit: String(cp.limit),
                           });
                           setEditTarget(cp);

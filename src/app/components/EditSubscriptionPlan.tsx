@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Plus, Trash2, Check, Loader2 } from "lucide-react";
-import { C, P, M, AD, APrimary, AGhost, AIn, ACard, PLAN_SIGNAL_TYPE_OPTIONS } from "./shared";
+import { C, P, M, AD, APrimary, AGhost, AIn, ACard, PLAN_SIGNAL_TYPE_OPTIONS, ATog } from "./shared";
 import { useToast } from "./SuccessToast";
 import {
   useGetAllSubscriptionsQuery,
@@ -51,6 +51,7 @@ export default function EditSubscriptionPlan() {
   const [name, setName] = useState("");
   const [monthly, setMonthly] = useState("49");
   const [yearly, setYearly] = useState("469");
+  const [yearlyEnabled, setYearlyEnabled] = useState(true);
   const [maxSignalsPerDay, setMaxSignalsPerDay] = useState("10");
   const [selectedSignalTypes, setSelectedSignalTypes] = useState<string[]>(["Scalp", "Swing"]);
 
@@ -101,6 +102,7 @@ export default function EditSubscriptionPlan() {
         setName(foundPlan.name || "");
         setMonthly(foundPlan.monthly ? String(foundPlan.monthly) : String(foundPlan.price || "49"));
         setYearly(foundPlan.yearly ? String(foundPlan.yearly) : String((foundPlan.price ? foundPlan.price * 10 : 469)));
+        setYearlyEnabled(foundPlan.yearlyEnabled !== false);
         setMaxSignalsPerDay(String(foundPlan.maxSignalsPerDay ?? 10));
         setSelectedSignalTypes(
           (foundPlan.signalTypes && foundPlan.signalTypes.length
@@ -140,6 +142,7 @@ export default function EditSubscriptionPlan() {
           ? signalTypeOptions.map((type) => type.key)
           : ["Scalp", "Swing", "Intraday", "Position", "Long-term"],
       );
+      setYearlyEnabled(true);
     }
   }, [id, isEditing, apiResponse, signalTypesResponse]);
 
@@ -203,6 +206,7 @@ export default function EditSubscriptionPlan() {
       features: activeFeatures,
       maxSignalsPerDay: Number(maxSignalsPerDay) || 10,
       signalTypes: selectedSignalTypes,
+      yearlyEnabled,
     };
 
     if (isEditing) {
@@ -319,6 +323,28 @@ export default function EditSubscriptionPlan() {
                     onChange={setYearly}
                     type="number"
                   />
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 14px",
+                    background: yearlyEnabled ? "rgba(128,0,255,0.06)" : "rgba(255,255,255,0.015)",
+                    border: `1px solid ${yearlyEnabled ? "rgba(128,0,255,0.2)" : AD.cardB}`,
+                    borderRadius: 10,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontFamily: P, fontSize: 13, fontWeight: 600, color: C.t1 }}>Yearly Billing</div>
+                    <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>
+                      {yearlyEnabled
+                        ? "Users can subscribe to this plan on a yearly cycle."
+                        : "Yearly billing is hidden from the app for this plan."}
+                    </div>
+                  </div>
+                  <ATog on={yearlyEnabled} onChange={setYearlyEnabled} />
                 </div>
               </div>
             </ACard>

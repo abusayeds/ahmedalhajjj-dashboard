@@ -25,6 +25,13 @@ import {
   useDeleteSignalTypeMutation,
   useGetSignalTypesQuery,
 } from "../../store/api/signalTypeApi";
+import {
+  dateInputToIso,
+  getTodayDateInput,
+  getTodayDateTimeLocal,
+  toDateInputValue,
+  toDateTimeLocalValue,
+} from "../utils/signalDate";
 
 type SignalForm = {
   asset: string;
@@ -38,6 +45,7 @@ type SignalForm = {
   tp3: string;
   notes: string;
   status: string;
+  signalDate: string;
   schedule: string;
 };
 
@@ -53,7 +61,8 @@ const emptyForm = (): SignalForm => ({
   tp3: "",
   notes: "",
   status: "Draft",
-  schedule: "",
+  signalDate: getTodayDateInput(),
+  schedule: getTodayDateTimeLocal(),
 });
 
 const PLACEHOLDERS: Record<string, {
@@ -127,7 +136,10 @@ const toPayload = (
   form: SignalForm,
   statusOverride?: string,
   typeOptions: ReadonlyArray<{ l: string; v: string }> = SIGNAL_TYPE_OPTIONS,
-) => ({
+  options?: { setSignalDate?: boolean },
+) => {
+  const status = statusOverride || form.status;
+  const payload = {
   asset: form.asset.trim(),
   category: form.cat,
   type: normalizeSignalType(form.type, typeOptions),
@@ -138,9 +150,16 @@ const toPayload = (
   tp2: form.tp2.trim() || undefined,
   tp3: form.tp3.trim() || undefined,
   notes: form.notes.trim() || undefined,
-  status: statusOverride || form.status,
+  status,
   scheduledAt: form.schedule ? new Date(form.schedule).toISOString() : undefined,
-});
+  } as Record<string, unknown>;
+
+  if (options?.setSignalDate !== false && status === "Active") {
+    payload.signalDate = dateInputToIso(form.signalDate);
+  }
+
+  return payload;
+};
 
 function SignalFormFields({
   form,
@@ -173,11 +192,21 @@ function SignalFormFields({
         <AIn label="Take Profit 2 (optional)" placeholder={ph.tp2} value={form.tp2} onChange={(v) => setForm({ ...form, tp2: v })} />
         <AIn label="Take Profit 3 (optional)" placeholder={ph.tp3} value={form.tp3} onChange={(v) => setForm({ ...form, tp3: v })} />
       </div>
+      <AIn
+        label="Signal Date"
+        value={form.signalDate}
+        onChange={(v) => setForm({ ...form, signalDate: v })}
+        type="date"
+      />
       <div style={{ display: "grid", gridTemplateColumns: isScheduled ? "1fr 1fr" : "1fr", gap: 13 }}>
         <ASel
           label="Save As"
           value={form.status}
-          onChange={(v) => setForm({ ...form, status: v, schedule: v === "Scheduled" ? form.schedule : "" })}
+          onChange={(v) => setForm({
+            ...form,
+            status: v,
+            schedule: v === "Scheduled" ? (form.schedule || getTodayDateTimeLocal()) : form.schedule,
+          })}
           opts={
             mode === "edit"
               ? [
@@ -230,7 +259,6 @@ export default function ASignals() {
   const [archiveTarget, setArchiveTarget] = useState<SignalData | null>(null);
 
   const [form, setForm] = useState<SignalForm>(emptyForm());
-  const [closeRes, setCloseRes] = useState("Win");
   const [closePnl, setClosePnl] = useState("");
 
   const { data, isLoading, isFetching, refetch } = useGetSignalsQuery({
@@ -287,7 +315,8 @@ export default function ASignals() {
       tp3: s.tp3,
       notes: "",
       status: s.status,
-      schedule: "",
+      signalDate: toDateInputValue(s.signalDate),
+      schedule: s.scheduledAt ? toDateTimeLocalValue(s.scheduledAt) : getTodayDateTimeLocal(),
     });
     setEditTarget(s);
   };
@@ -305,7 +334,8 @@ export default function ASignals() {
       tp3: s.tp3,
       notes: "",
       status: "Draft",
-      schedule: "",
+      signalDate: getTodayDateInput(),
+      schedule: getTodayDateTimeLocal(),
     });
     setDupTarget(s);
   };
@@ -349,7 +379,11 @@ export default function ASignals() {
       return;
     }
     try {
-      await updateSignal({ id: editTarget.id, data: toPayload(form, undefined, typeOptionsForForm) }).unwrap();
+      const setSignalDate = form.status === "Active";
+      await updateSignal({
+        id: editTarget.id,
+        data: toPayload(form, undefined, typeOptionsForForm, { setSignalDate }),
+      }).unwrap();
       setEditTarget(null);
       showToast("Signal updated successfully!");
     } catch (error: any) {

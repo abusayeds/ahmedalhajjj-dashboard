@@ -25,8 +25,10 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    port: 2003,
+    port: 5173,
     strictPort: true,
+    host: true,
+    allowedHosts: ["sabbir5173.ssh.bd", ".ssh.bd"],
   },
   resolve: {
     alias: {

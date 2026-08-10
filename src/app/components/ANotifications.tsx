@@ -17,10 +17,18 @@ import {
   useSendNotificationMutation,
   useUpdateNotificationMutation,
 } from "../../store/api/notificationApi";
+import { getTodayDateTimeLocal } from "../utils/signalDate";
+
+const emptyNotifForm = () => ({
+  title: "",
+  msg: "",
+  audience: "All Users",
+  schedule: getTodayDateTimeLocal(),
+});
 
 export default function ANotifications() {
   const { showToast } = useToast();
-  const [form, setForm] = useState({ title: "", msg: "", audience: "All Users", schedule: "" });
+  const [form, setForm] = useState(emptyNotifForm());
   const [sent, setSent] = useState(false);
   const [editTarget, setEditTarget] = useState<NotifData | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<NotifData | null>(null);
@@ -79,7 +87,7 @@ export default function ANotifications() {
         scheduledAt: new Date(form.schedule).toISOString(),
       }).unwrap();
       showToast("Notification scheduled");
-      setForm({ title: "", msg: "", audience: "All Users", schedule: "" });
+      setForm(emptyNotifForm());
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to schedule notification", "error");
     }
@@ -101,7 +109,7 @@ export default function ANotifications() {
           <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(0,208,132,0.1)", border: "1px solid rgba(0,208,132,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><CheckCircle size={28} color={C.buy} /></div>
           <div style={{ fontFamily: P, fontSize: 15, fontWeight: 600, color: C.buy, marginBottom: 6 }}>Notification Sent</div>
           <div style={{ fontFamily: P, fontSize: 13, color: C.tm, marginBottom: 20 }}>Delivered to {form.audience}</div>
-          <AGhost onClick={() => { setSent(false); setForm({ title: "", msg: "", audience: "All Users", schedule: "" }); }}>Send Another</AGhost>
+          <AGhost onClick={() => { setSent(false); setForm(emptyNotifForm()); }}>Send Another</AGhost>
         </div> : <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <AIn label="Title" placeholder="e.g. New Signal — BTC/USDT" value={form.title} onChange={(v) => setForm({ ...form, title: v })} />
           <ATa label="Message" placeholder="Write the message body…" value={form.msg} onChange={(v) => setForm({ ...form, msg: v })} rows={3} />
@@ -155,7 +163,7 @@ export default function ANotifications() {
               <div style={{ display: "flex", gap: 6 }}>
                 <IconBtn icon={<Eye size={14} color={C.t2} />} title="Preview" onClick={() => setPreviewTarget(n)} />
                 <IconBtn icon={<Pencil size={14} color={C.t2} />} title="Edit" onClick={() => {
-                  setForm({ title: n.title, msg: n.message || "", audience: n.audience, schedule: "" });
+                  setForm({ title: n.title, msg: n.message || "", audience: n.audience, schedule: getTodayDateTimeLocal() });
                   setEditTarget(n);
                 }} />
                 <IconBtn icon={<Trash2 size={14} color={C.sell} />} title="Delete" onClick={() => setDeleteTarget(n)} />

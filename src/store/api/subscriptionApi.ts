@@ -17,6 +17,7 @@ export interface ISubscriptionPlan {
   includesEconomicCalendar?: boolean;
   support?: "basic" | "advanced" | "premium" | string;
   signalTypes?: string[];
+  yearlyEnabled?: boolean;
   isActive?: boolean;
   status?: string;
   subs?: number;

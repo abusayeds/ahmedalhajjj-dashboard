@@ -101,7 +101,7 @@ export const {
 
 export const mapApiPost = (post: ApiPost): PostData => ({
   id: String(post._id || post.id || ""),
-  img: post.img || "",
+  img: post.img || post.coverImage || "",
   title: post.title,
   cat: post.cat,
   likes: post.likes || 0,

@@ -37,6 +37,7 @@ export interface SignalPayload {
   notes?: string;
   status?: string;
   scheduledAt?: string;
+  signalDate?: string;
 }
 
 export const signalApi = baseApi.injectEndpoints({
@@ -133,4 +134,6 @@ export const mapApiSignal = (signal: ApiSignal): SignalData => ({
   tp3: signal.tp3 || "—",
   status: signal.status,
   pub: signal.pub || "—",
+  signalDate: signal.signalDate,
+  scheduledAt: signal.scheduledAt,
 });

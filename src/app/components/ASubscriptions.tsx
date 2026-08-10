@@ -25,6 +25,7 @@ type PlanData = {
   emoji: string;
   monthly: string;
   yearly: string;
+  yearlyEnabled: boolean;
   color: string;
   subs: number;
   status: string;
@@ -135,6 +136,7 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
           emoji,
           monthly: p.monthly ? String(p.monthly) : String(p.price || "0"),
           yearly: p.yearly ? String(p.yearly) : String((p.price ? Number(p.price) * 10 : 0)),
+          yearlyEnabled: p.yearlyEnabled !== false,
           color,
           subs: realSubs,
           status: p.isActive !== false ? "Active" : "Hidden",
@@ -147,6 +149,17 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
 
     return [];
   }, [apiResponse, realSubscriberStats]);
+
+  const hasYearlyPlans = useMemo(
+    () => plans.some((plan) => plan.yearlyEnabled),
+    [plans],
+  );
+
+  useEffect(() => {
+    if (!hasYearlyPlans && billing === "yearly") {
+      setBilling("monthly");
+    }
+  }, [hasYearlyPlans, billing]);
 
   const handleConfirmToggle = async () => {
     if (!toggleTarget) return;
@@ -223,12 +236,14 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
       </div>
 
       {/* Monthly / Yearly Switcher */}
-      <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-        <div style={{ display: "flex", background: AD.inp, borderRadius: 10, padding: 4, gap: 4 }}>
-          <button onClick={() => setBilling("monthly")} style={{ padding: "8px 24px", borderRadius: 6, background: billing === "monthly" ? "rgba(255,255,255,0.1)" : "transparent", color: billing === "monthly" ? "#fff" : C.td, fontFamily: P, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s" }}>Monthly Billing</button>
-          <button onClick={() => setBilling("yearly")} style={{ padding: "8px 24px", borderRadius: 6, background: billing === "yearly" ? "rgba(255,255,255,0.1)" : "transparent", color: billing === "yearly" ? "#fff" : C.td, fontFamily: P, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s" }}>Yearly Billing</button>
+      {hasYearlyPlans && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
+          <div style={{ display: "flex", background: AD.inp, borderRadius: 10, padding: 4, gap: 4 }}>
+            <button onClick={() => setBilling("monthly")} style={{ padding: "8px 24px", borderRadius: 6, background: billing === "monthly" ? "rgba(255,255,255,0.1)" : "transparent", color: billing === "monthly" ? "#fff" : C.td, fontFamily: P, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s" }}>Monthly Billing</button>
+            <button onClick={() => setBilling("yearly")} style={{ padding: "8px 24px", borderRadius: 6, background: billing === "yearly" ? "rgba(255,255,255,0.1)" : "transparent", color: billing === "yearly" ? "#fff" : C.td, fontFamily: P, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s" }}>Yearly Billing</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Plan Cards */}
       {isApiLoading ? (
@@ -253,6 +268,9 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
                       <div style={{ fontFamily: P, fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 2 }}>{plan.name}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <Chip label={plan.status} type={plan.status === "Active" ? "ok" : "muted"} />
+                        {!plan.yearlyEnabled && (
+                          <Chip label="Yearly Off" type="muted" />
+                        )}
                         <span style={{ fontFamily: P, fontSize: 11, color: C.tm }}>
                           <strong>{plan.subs}</strong> active members
                         </span>
@@ -274,9 +292,18 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
                 </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 4, color: plan.color }}>
-                    <span style={{ fontFamily: M, fontSize: 28, fontWeight: 700 }}>${billing === "monthly" ? plan.monthly : plan.yearly}</span>
-                    <span style={{ fontFamily: P, fontSize: 13, opacity: 0.8 }}>/ {billing === "monthly" ? "month" : "year"}</span>
+                    <span style={{ fontFamily: M, fontSize: 28, fontWeight: 700 }}>
+                      ${billing === "yearly" && plan.yearlyEnabled ? plan.yearly : plan.monthly}
+                    </span>
+                    <span style={{ fontFamily: P, fontSize: 13, opacity: 0.8 }}>
+                      / {billing === "yearly" && plan.yearlyEnabled ? "year" : "month"}
+                    </span>
                   </div>
+                  {billing === "yearly" && !plan.yearlyEnabled && (
+                    <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 6 }}>
+                      Yearly billing disabled for this plan
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ padding: "24px 28px", background: AD.card }}>

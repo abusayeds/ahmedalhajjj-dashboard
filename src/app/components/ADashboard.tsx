@@ -15,12 +15,50 @@ import { useToast } from "./SuccessToast";
 import { useCreateSignalMutation } from "../../store/api/signalApi";
 import { mapSignalTypeOptions, useGetSignalTypesQuery } from "../../store/api/signalTypeApi";
 import { useCreatePostMutation } from "../../store/api/postApi";
+import PostCoverUpload from "./PostCoverUpload";
 import {
   useGetAudienceStatsQuery,
   useScheduleNotificationMutation,
   useSendNotificationMutation,
 } from "../../store/api/notificationApi";
 import { useGetDashboardStatsQuery } from "../../store/api/dashboardApi";
+import {
+  dateInputToIso,
+  getTodayDateInput,
+  getTodayDateTimeLocal,
+} from "../utils/signalDate";
+
+const emptySignalForm = () => ({
+  asset: "",
+  cat: "Forex",
+  type: "Swing",
+  dir: "BUY",
+  entry: "",
+  sl: "",
+  tp1: "",
+  tp2: "",
+  tp3: "",
+  notes: "",
+  status: "Active",
+  signalDate: getTodayDateInput(),
+  schedule: getTodayDateTimeLocal(),
+});
+
+const emptyPostForm = () => ({
+  title: "",
+  body: "",
+  cat: "Market Update",
+  schedule: getTodayDateTimeLocal(),
+  mode: "publish" as "publish" | "schedule",
+  coverImage: "",
+});
+
+const emptyNotifForm = () => ({
+  title: "",
+  msg: "",
+  audience: "All Users",
+  schedule: getTodayDateTimeLocal(),
+});
 
 export default function ADashboard() {
   const { showToast } = useToast();
@@ -44,9 +82,9 @@ export default function ADashboard() {
   const [postModal, setPostModal] = useState(false);
   const [notifModal, setNotifModal] = useState(false);
 
-  const [sf, setSf] = useState({ asset: "", cat: "Forex", type: "Swing", dir: "BUY", entry: "", sl: "", tp1: "", tp2: "", tp3: "", notes: "", status: "Active", schedule: "" });
-  const [pf, setPf] = useState({ title: "", body: "", cat: "Market Update", schedule: "", mode: "publish" as "publish" | "schedule" });
-  const [nf, setNf] = useState({ title: "", msg: "", audience: "All Users", schedule: "" });
+  const [sf, setSf] = useState(emptySignalForm());
+  const [pf, setPf] = useState(emptyPostForm());
+  const [nf, setNf] = useState(emptyNotifForm());
 
   const dashboard = dashboardRes?.data;
   const audience = audienceData?.data;
@@ -112,7 +150,7 @@ export default function ADashboard() {
         status: "Draft",
       }).unwrap();
       setSignalModal(false);
-      setSf({ asset: "", cat: "Forex", type: "Swing", dir: "BUY", entry: "", sl: "", tp1: "", tp2: "", tp3: "", notes: "", status: "Active", schedule: "" });
+      setSf(emptySignalForm());
       showToast("Signal saved as draft");
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to save signal", "error");
@@ -134,9 +172,10 @@ export default function ADashboard() {
         notes: sf.notes,
         status: sf.status,
         scheduledAt: sf.schedule ? new Date(sf.schedule).toISOString() : undefined,
+        signalDate: sf.status === "Active" ? dateInputToIso(sf.signalDate) : undefined,
       }).unwrap();
       setSignalModal(false);
-      setSf({ asset: "", cat: "Forex", type: "Swing", dir: "BUY", entry: "", sl: "", tp1: "", tp2: "", tp3: "", notes: "", status: "Active", schedule: "" });
+      setSf(emptySignalForm());
       showToast("Signal published successfully!");
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to publish signal", "error");
@@ -145,9 +184,9 @@ export default function ADashboard() {
 
   const savePostDraft = async () => {
     try {
-      await createPost({ title: pf.title, body: pf.body, category: pf.cat, status: "Draft" }).unwrap();
+      await createPost({ title: pf.title, body: pf.body, category: pf.cat, coverImage: pf.coverImage || undefined, status: "Draft" }).unwrap();
       setPostModal(false);
-      setPf({ title: "", body: "", cat: "Market Update", schedule: "", mode: "publish" });
+      setPf(emptyPostForm());
       showToast("Post saved as draft");
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to save post", "error");
@@ -160,11 +199,12 @@ export default function ADashboard() {
         title: pf.title,
         body: pf.body,
         category: pf.cat,
+        coverImage: pf.coverImage || undefined,
         status: pf.mode === "schedule" ? "Scheduled" : "Published",
         scheduledAt: pf.schedule ? new Date(pf.schedule).toISOString() : undefined,
       }).unwrap();
       setPostModal(false);
-      setPf({ title: "", body: "", cat: "Market Update", schedule: "", mode: "publish" });
+      setPf(emptyPostForm());
       showToast(pf.mode === "schedule" ? "Post scheduled successfully!" : "Post published successfully!");
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to save post", "error");
@@ -176,7 +216,7 @@ export default function ADashboard() {
       await sendNotification({ title: nf.title, message: nf.msg, audience: nf.audience }).unwrap();
       setNotifModal(false);
       showToast(`Notification sent to ${nf.audience}!`);
-      setNf({ title: "", msg: "", audience: "All Users", schedule: "" });
+      setNf(emptyNotifForm());
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to send notification", "error");
     }
@@ -196,7 +236,7 @@ export default function ADashboard() {
       }).unwrap();
       setNotifModal(false);
       showToast("Notification scheduled");
-      setNf({ title: "", msg: "", audience: "All Users", schedule: "" });
+      setNf(emptyNotifForm());
     } catch (error: any) {
       showToast(error?.data?.message || "Failed to schedule notification", "error");
     }
@@ -402,9 +442,15 @@ export default function ADashboard() {
           <AIn label="Take Profit 2 (optional)" placeholder="e.g. 71,500.00" value={sf.tp2} onChange={(v) => setSf({ ...sf, tp2: v })} />
           <AIn label="Take Profit 3 (optional)" placeholder="e.g. 74,000.00" value={sf.tp3} onChange={(v) => setSf({ ...sf, tp3: v })} />
         </div>
+        <AIn
+          label="Signal Date"
+          value={sf.signalDate}
+          onChange={(v) => setSf({ ...sf, signalDate: v })}
+          type="date"
+        />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 13 }}>
           <ASel label="Status" value={sf.status} onChange={(v) => setSf({ ...sf, status: v })} opts={[{ l: "Active (Publish Now)", v: "Active" }, { l: "Draft", v: "Draft" }, { l: "Scheduled", v: "Scheduled" }]} />
-          <AIn label="Schedule Time" placeholder="e.g. 2026-08-09T09:00" value={sf.schedule} onChange={(v) => setSf({ ...sf, schedule: v })} type="datetime-local" />
+          <AIn label="Schedule Time" placeholder="Select date and time" value={sf.schedule} onChange={(v) => setSf({ ...sf, schedule: v })} type="datetime-local" />
         </div>
         <ATa label="Analysis Notes (optional)" placeholder="Briefly describe the setup, key levels, and confluence…" value={sf.notes} onChange={(v) => setSf({ ...sf, notes: v })} />
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 2 }}>
@@ -417,16 +463,12 @@ export default function ADashboard() {
 
     {postModal && <AModal title="Create Post" sub="Publish to the mobile app Posts feed" onClose={() => setPostModal(false)} width={680}>
       <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-        <div style={{ border: `2px dashed ${AD.cardB}`, borderRadius: 12, height: 110, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", background: "rgba(255,255,255,0.01)", transition: "all 0.2s" }} className="a-btn">
-          <Image size={22} color={C.td} />
-          <span style={{ fontFamily: P, fontSize: 12, color: C.td }}>Upload banner image</span>
-          <span style={{ fontFamily: P, fontSize: 10, color: C.td }}>PNG or JPG · 1200×480px recommended</span>
-        </div>
+        <PostCoverUpload value={pf.coverImage} onChange={(coverImage) => setPf({ ...pf, coverImage })} />
         <AIn label="Post Title" placeholder="Write a compelling headline…" value={pf.title} onChange={(v) => setPf({ ...pf, title: v })} />
         <ATa label="Content" placeholder="Write the post body…" value={pf.body} onChange={(v) => setPf({ ...pf, body: v })} rows={4} />
         <ASel label="Category" value={pf.cat} onChange={(v) => setPf({ ...pf, cat: v })} opts={[{ l: "Market Update", v: "Market Update" }, { l: "Education", v: "Education" }, { l: "News", v: "News" }, { l: "Announcement", v: "Announcement" }]} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 13 }}>
-          <ASel label="Publish Mode" value={pf.mode} onChange={(v) => setPf({ ...pf, mode: v as "publish" | "schedule" })} opts={[{ l: "Publish Now", v: "publish" }, { l: "Schedule for Later", v: "schedule" }]} />
+          <ASel label="Publish Mode" value={pf.mode} onChange={(v) => setPf({ ...pf, mode: v as "publish" | "schedule", schedule: v === "schedule" ? (pf.schedule || getTodayDateTimeLocal()) : pf.schedule })} opts={[{ l: "Publish Now", v: "publish" }, { l: "Schedule for Later", v: "schedule" }]} />
           {pf.mode === "schedule" && <AIn label="Schedule Time" placeholder="Select date and time" value={pf.schedule} onChange={(v) => setPf({ ...pf, schedule: v })} type="datetime-local" />}
         </div>
         <div style={{ background: "rgba(128,0,255,0.06)", border: "1px solid rgba(128,0,255,0.14)", borderRadius: 11, padding: "10px 14px", display: "flex", gap: 8, alignItems: "center" }}>

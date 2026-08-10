@@ -45,7 +45,7 @@ export const PERF_DATA = [
 export type SignalData = {
   id: string; asset: string; cat: string; type: string; dir: "BUY" | "SELL";
   entry: string; sl: string; tp1: string; tp2: string; tp3: string;
-  status: string; pub: string;
+  status: string; pub: string; signalDate?: string; scheduledAt?: string;
 };
 
 export const SIGNAL_TYPE_OPTIONS = [
