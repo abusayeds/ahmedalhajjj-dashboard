@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import {
   Zap, Bell, BookOpen, BarChart2, Settings, Shield, LogOut,
-  Search, CreditCard, ChevronDown, ChevronRight, Tag, Users, FileText, Info, User
+  CreditCard, ChevronDown, ChevronRight, Tag, Users, FileText, Info, User
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
 import { logout } from "../store/slices/authSlice";
@@ -310,6 +310,7 @@ function AdminTopBar({
   onChangePassword: () => void;
   onLogout: () => void;
 }) {
+  const navigate = useNavigate();
   const location = useLocation();
   const currentSection = getSectionFromPath(location.pathname);
 
@@ -324,7 +325,6 @@ function AdminTopBar({
     settings: ["Settings", "System configuration, profile, and policy management"],
   };
   const [title, subtitle] = titles[currentSection] || titles.dashboard;
-  const [q, setQ] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const now = new Date();
   const tStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
@@ -363,68 +363,6 @@ function AdminTopBar({
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            background: "rgba(255,255,255,0.02)",
-            border: `1px solid ${AD.inpB}`,
-            borderRadius: 12,
-            padding: "10px 16px",
-            width: 280,
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
-            transition: "all 0.2s",
-          }}
-          className="a-search-focus"
-        >
-          <Search size={16} color={C.tm} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search everything..."
-            style={{
-              background: "none",
-              border: "none",
-              outline: "none",
-              fontFamily: P,
-              fontSize: 14,
-              color: C.t1,
-              width: "100%",
-            }}
-          />
-          <div style={{ display: "flex", gap: 4 }}>
-            <kbd
-              style={{
-                fontFamily: M,
-                fontSize: 10,
-                background: "rgba(255,255,255,0.1)",
-                color: C.tm,
-                padding: "2px 6px",
-                borderRadius: 4,
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              ⌘
-            </kbd>
-            <kbd
-              style={{
-                fontFamily: M,
-                fontSize: 10,
-                background: "rgba(255,255,255,0.1)",
-                color: C.tm,
-                padding: "2px 6px",
-                borderRadius: 4,
-                border: "1px solid rgba(255,255,255,0.05)",
-              }}
-            >
-              K
-            </kbd>
-          </div>
-        </div>
-
-        <div style={{ width: 1, height: 24, background: AD.cardB }} />
-
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{ fontFamily: M, fontSize: 12, color: C.td, letterSpacing: "0.05em", textAlign: "right" }}>
             <div>{tStr}</div>
@@ -432,6 +370,8 @@ function AdminTopBar({
           </div>
 
           <div
+            onClick={() => navigate("/notifications")}
+            title="Notifications"
             style={{
               position: "relative",
               cursor: "pointer",
