@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { SignalData } from "../../app/components/shared";
+import { normalizeSignalCategory } from "../../app/components/shared";
 
 export interface ApiSignal extends Omit<SignalData, "id"> {
   _id?: string;
@@ -124,7 +125,7 @@ export const {
 export const mapApiSignal = (signal: ApiSignal): SignalData => ({
   id: String(signal._id || signal.id || ""),
   asset: signal.asset,
-  cat: signal.cat,
+  cat: normalizeSignalCategory(signal.cat || (signal as ApiSignal & { category?: string }).category),
   type: signal.type,
   dir: signal.dir,
   entry: signal.entry,

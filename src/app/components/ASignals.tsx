@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import {
   Zap, Plus, Pencil, Trash2, Search, RefreshCw, Download,
-  FileText, Check, ChevronLeft, ChevronRight, Copy, Archive, Send, Calendar, Settings2,
+  FileText, Check, ChevronLeft, ChevronRight, Copy, Archive, Send, Calendar, Settings2, Lock,
 } from "lucide-react";
 import {
   C, P, M, AD, APrimary, AGhost, AIn, ATa, ASel, AModal, ACard, Chip, IconBtn,
   SignalData, SIGNAL_TYPE_OPTIONS, matchSignalTypeOption,
+  normalizeSignalCategory, getSignalCategoryLabel, signalCategorySelectOptions,
 } from "./shared";
 import { ConfirmDeleteModal, ConfirmActionModal } from "./ConfirmDeleteModal";
 import { useToast } from "./SuccessToast";
@@ -179,7 +180,7 @@ function SignalFormFields({
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13 }}>
         <AIn label="Asset / Pair" placeholder={ph.asset} value={form.asset} onChange={(v) => setForm({ ...form, asset: v })} />
-        <ASel label="Category" value={form.cat} onChange={(v) => setForm({ ...form, cat: v })} opts={[{ l: "Forex", v: "Forex" }, { l: "Cryptocurrency", v: "Crypto" }, { l: "Commodity", v: "Commodity" }, { l: "Index", v: "Index" }]} />
+        <ASel label="Category" value={form.cat} onChange={(v) => setForm({ ...form, cat: v })} opts={signalCategorySelectOptions()} />
         <ASel label="Signal Type" value={form.type} onChange={(v) => setForm({ ...form, type: v })} opts={signalTypeOptions} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13 }}>
@@ -259,6 +260,7 @@ export default function ASignals() {
   const [archiveTarget, setArchiveTarget] = useState<SignalData | null>(null);
 
   const [form, setForm] = useState<SignalForm>(emptyForm());
+  const [closeRes, setCloseRes] = useState("Win");
   const [closePnl, setClosePnl] = useState("");
 
   const { data, isLoading, isFetching, refetch } = useGetSignalsQuery({
@@ -300,12 +302,18 @@ export default function ASignals() {
     return <Chip label={s} type={m[s] || "muted"} />;
   };
 
+  const openCloseModal = (signal: SignalData) => {
+    setCloseRes("Win");
+    setClosePnl("");
+    setCloseTarget(signal);
+  };
+
   const resetForm = () => setForm(emptyForm());
 
   const openEdit = (s: SignalData) => {
     setForm({
       asset: s.asset,
-      cat: s.cat,
+      cat: normalizeSignalCategory(s.cat),
       type: matchSignalTypeOption(s.type, typeOptionsForForm),
       dir: s.dir,
       entry: s.entry,
@@ -324,7 +332,7 @@ export default function ASignals() {
   const openDuplicate = (s: SignalData) => {
     setForm({
       asset: s.asset,
-      cat: s.cat,
+      cat: normalizeSignalCategory(s.cat),
       type: matchSignalTypeOption(s.type, typeOptionsForForm),
       dir: s.dir,
       entry: s.entry,
@@ -459,7 +467,7 @@ export default function ASignals() {
           {filtered.map((s, i) => <div key={s.id} className="a-row" style={{ display: "grid", gridTemplateColumns: COLS, padding: "24px 28px", borderBottom: i < filtered.length - 1 ? `1px solid ${AD.cardB}` : "none", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontFamily: M, fontSize: 15, fontWeight: 700, color: C.t1 }}>{s.asset}</span>
-              <span style={{ fontFamily: P, fontSize: 12, color: C.td }}>{s.cat}</span>
+              <span style={{ fontFamily: P, fontSize: 12, color: C.td }}>{getSignalCategoryLabel(s.cat)}</span>
             </div>
             <span style={{ fontFamily: P, fontSize: 13, color: C.t2 }}>{s.type}</span>
             <span style={{ fontFamily: M, fontSize: 13, fontWeight: 700, color: dCol(s.dir) }}>{s.dir}</span>
@@ -473,7 +481,7 @@ export default function ASignals() {
             <div style={{ display: "flex", gap: 6 }}>
               <IconBtn icon={<Pencil size={14} color={C.t2} />} title="Edit" onClick={() => openEdit(s)} />
               <IconBtn icon={<Copy size={14} color={C.t2} />} title="Duplicate" onClick={() => openDuplicate(s)} />
-              {s.status === "Active" && <IconBtn icon={<span style={{ fontSize: 14 }}>🔒</span>} title="Close" onClick={() => setCloseTarget(s)} bg="rgba(191,160,109,0.08)" />}
+              {s.status === "Active" && <IconBtn icon={<Lock size={14} color={C.gold} />} title="Close" onClick={() => openCloseModal(s)} bg="rgba(191,160,109,0.08)" />}
               {(s.status === "Draft" || s.status === "Scheduled") && <IconBtn icon={<Send size={14} color={C.buy} />} title="Publish" onClick={() => setPublishTarget(s)} bg="rgba(0,208,132,0.08)" />}
               {s.status === "Closed" && <IconBtn icon={<Archive size={14} color={C.tm} />} title="Archive" onClick={() => setArchiveTarget(s)} />}
               <IconBtn icon={<Trash2 size={14} color={C.sell} />} title="Delete" onClick={() => setDeleteTarget(s)} />
