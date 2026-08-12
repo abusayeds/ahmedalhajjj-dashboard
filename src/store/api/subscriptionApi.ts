@@ -17,7 +17,10 @@ export interface ISubscriptionPlan {
   includesEconomicCalendar?: boolean;
   support?: "basic" | "advanced" | "premium" | string;
   signalTypes?: string[];
+  allowedCategories?: string[];
   yearlyEnabled?: boolean;
+  stripePriceId?: string;
+  stripeProductId?: string;
   isActive?: boolean;
   status?: string;
   subs?: number;

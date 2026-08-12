@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save, Plus, Trash2, Check, Loader2 } from "lucide-react";
-import { C, P, M, AD, APrimary, AGhost, AIn, ACard, PLAN_SIGNAL_TYPE_OPTIONS, ATog } from "./shared";
+import { C, P, M, AD, APrimary, AGhost, AIn, ACard, PLAN_SIGNAL_TYPE_OPTIONS, ATog, SIGNAL_CATEGORY_OPTIONS } from "./shared";
 import { useToast } from "./SuccessToast";
 import {
   useGetAllSubscriptionsQuery,
@@ -36,6 +36,37 @@ const DEFAULT_SUGGESTED_FEATURES = [
   "Cancel anytime • No commitment required",
 ];
 
+const SUPPORT_OPTIONS = [
+  { value: "basic", label: "Basic" },
+  { value: "advanced", label: "Advanced" },
+  { value: "premium", label: "Premium" },
+] as const;
+
+const PAGE_PAD = "16px 20px 48px";
+const CARD_PAD = "16px 18px";
+const COL_GAP = 14;
+const FIELD_GAP = 12;
+
+const cardTitleStyle: React.CSSProperties = {
+  fontFamily: P,
+  fontSize: 14,
+  fontWeight: 700,
+  color: C.t1,
+  marginBottom: 12,
+  borderBottom: `1px solid ${AD.cardB}`,
+  paddingBottom: 10,
+};
+
+const toggleRowStyle = (enabled: boolean): React.CSSProperties => ({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: "9px 12px",
+  background: enabled ? "rgba(128,0,255,0.06)" : "rgba(255,255,255,0.015)",
+  border: `1px solid ${enabled ? "rgba(128,0,255,0.2)" : AD.cardB}`,
+  borderRadius: 8,
+});
+
 export default function EditSubscriptionPlan() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -49,11 +80,19 @@ export default function EditSubscriptionPlan() {
 
   // Form states (Only backend fields)
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [monthly, setMonthly] = useState("49");
   const [yearly, setYearly] = useState("469");
   const [yearlyEnabled, setYearlyEnabled] = useState(true);
+  const [isActive, setIsActive] = useState(true);
   const [maxSignalsPerDay, setMaxSignalsPerDay] = useState("10");
   const [selectedSignalTypes, setSelectedSignalTypes] = useState<string[]>(["Scalp", "Swing"]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["Forex", "Crypto", "Commodity", "Index"]);
+  const [includesGoldSignals, setIncludesGoldSignals] = useState(false);
+  const [includesTechnicalAnalysis, setIncludesTechnicalAnalysis] = useState(false);
+  const [includesMarketSentiment, setIncludesMarketSentiment] = useState(false);
+  const [includesEconomicCalendar, setIncludesEconomicCalendar] = useState(false);
+  const [support, setSupport] = useState("basic");
 
   // Feature points states
   const [featurePoints, setFeaturePoints] = useState<FeaturePoint[]>([]);
@@ -98,12 +137,29 @@ export default function EditSubscriptionPlan() {
       );
 
       if (foundPlan) {
+        const planNameLower = (foundPlan.name || "").toLowerCase();
         setRawPlanId(foundPlan._id || null);
         setName(foundPlan.name || "");
+        setDescription(foundPlan.description || "");
         setMonthly(foundPlan.monthly ? String(foundPlan.monthly) : String(foundPlan.price || "49"));
         setYearly(foundPlan.yearly ? String(foundPlan.yearly) : String((foundPlan.price ? foundPlan.price * 10 : 469)));
         setYearlyEnabled(foundPlan.yearlyEnabled !== false);
+        setIsActive(foundPlan.isActive !== false);
         setMaxSignalsPerDay(String(foundPlan.maxSignalsPerDay ?? 10));
+        setSelectedCategories(
+          foundPlan.allowedCategories?.length
+            ? foundPlan.allowedCategories
+            : planNameLower.includes("forex")
+              ? ["Forex", "Commodity"]
+              : planNameLower.includes("crypto")
+                ? ["Crypto"]
+                : ["Forex", "Crypto", "Commodity", "Index"],
+        );
+        setIncludesGoldSignals(foundPlan.includesGoldSignals ?? false);
+        setIncludesTechnicalAnalysis(foundPlan.includesTechnicalAnalysis ?? false);
+        setIncludesMarketSentiment(foundPlan.includesMarketSentiment ?? false);
+        setIncludesEconomicCalendar(foundPlan.includesEconomicCalendar ?? false);
+        setSupport(foundPlan.support || "basic");
         setSelectedSignalTypes(
           (foundPlan.signalTypes && foundPlan.signalTypes.length
             ? foundPlan.signalTypes
@@ -154,6 +210,14 @@ export default function EditSubscriptionPlan() {
     );
   };
 
+  const toggleCategory = (category: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((item) => item !== category)
+        : [...prev, category],
+    );
+  };
+
   const handleAddCustomFeature = () => {
     if (!newFeatureInput || !newFeatureInput.trim()) return;
     const newPoint: FeaturePoint = {
@@ -198,15 +262,28 @@ export default function EditSubscriptionPlan() {
       return;
     }
 
+    if (selectedCategories.length === 0) {
+      showToast("Please select at least one signal category for this plan!", "warning");
+      return;
+    }
+
     const planPayload = {
       name,
+      description: description.trim() || `${name} trading signals subscription plan`,
       price: Number(monthly) || 49,
       monthly,
       yearly,
       features: activeFeatures,
       maxSignalsPerDay: Number(maxSignalsPerDay) || 10,
       signalTypes: selectedSignalTypes,
+      allowedCategories: selectedCategories,
+      includesGoldSignals,
+      includesTechnicalAnalysis,
+      includesMarketSentiment,
+      includesEconomicCalendar,
+      support,
       yearlyEnabled,
+      isActive,
     };
 
     if (isEditing) {
@@ -230,7 +307,6 @@ export default function EditSubscriptionPlan() {
       try {
         await createSubscription({
           ...planPayload,
-          description: `${name} trading signals subscription plan`,
         }).unwrap();
         showToast("Subscription plan created successfully!", "success");
         navigate("/subscriptions");
@@ -241,9 +317,26 @@ export default function EditSubscriptionPlan() {
   };
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1000, margin: "0 auto" }}>
+    <div
+      style={{
+        padding: PAGE_PAD,
+        maxWidth: 1180,
+        margin: "0 auto",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       {/* Top Bar / Navigation */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 16,
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
         <button
           onClick={() => navigate("/subscriptions")}
           style={{
@@ -277,30 +370,41 @@ export default function EditSubscriptionPlan() {
       </div>
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontFamily: P, fontSize: 24, fontWeight: 700, color: C.t1, margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ fontFamily: P, fontSize: 20, fontWeight: 700, color: C.t1, margin: "0 0 4px", letterSpacing: "-0.3px" }}>
           {isEditing ? `Edit Plan — ${name}` : "Create New Subscription Plan"}
         </h2>
-        <div style={{ fontFamily: P, fontSize: 13, color: C.tm }}>
-          Configure pricing details and point-by-point feature highlights.
+        <div style={{ fontFamily: P, fontSize: 12, color: C.tm, lineHeight: 1.5 }}>
+          Configure pricing, signal access, premium features, and point-by-point highlights.
+          {isEditing && (
+            <span style={{ display: "block", marginTop: 4, color: C.gold, fontSize: 11 }}>
+              Plan edits apply to new purchases only. Existing subscribers keep the benefits from when they subscribed.
+            </span>
+          )}
         </div>
       </div>
 
       {isFetchingPlans && isEditing ? (
-        <div style={{ padding: 80, textAlign: "center", color: C.tm, fontFamily: P, fontSize: 14 }}>
+        <div style={{ padding: 48, textAlign: "center", color: C.tm, fontFamily: P, fontSize: 13 }}>
           <Loader2 size={32} className="animate-spin" style={{ margin: "0 auto 12px", color: C.brand }} />
           Loading plan details...
         </div>
       ) : (
-        <form onSubmit={handleSave} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
-          {/* Left Column: Basic Plan Configuration */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <ACard style={{ padding: "24px 28px" }}>
-              <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1, marginBottom: 16, borderBottom: `1px solid ${AD.cardB}`, paddingBottom: 12 }}>
-                Plan Information
-              </div>
+        <form
+          onSubmit={handleSave}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: COL_GAP,
+            alignItems: "start",
+          }}
+        >
+          {/* Left Column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: COL_GAP, minWidth: 0 }}>
+            <ACard style={{ padding: CARD_PAD }}>
+              <div style={cardTitleStyle}>Plan Information</div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
                 <AIn
                   label="Plan Name"
                   placeholder="e.g. VIP Plan or Forex Pro"
@@ -308,7 +412,32 @@ export default function EditSubscriptionPlan() {
                   onChange={setName}
                 />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <div style={{ fontFamily: P, fontSize: 11, fontWeight: 600, color: C.tm, letterSpacing: "0.06em", marginBottom: 8 }}>
+                    DESCRIPTION
+                  </div>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Short plan description shown in the app"
+                    rows={3}
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      background: AD.inp,
+                      border: `1px solid ${AD.inpB}`,
+                      borderRadius: 9,
+                      padding: "10px 13px",
+                      fontFamily: P,
+                      fontSize: 13,
+                      color: C.t1,
+                      outline: "none",
+                      resize: "vertical",
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <AIn
                     label="Monthly Price ($)"
                     placeholder="49"
@@ -325,36 +454,36 @@ export default function EditSubscriptionPlan() {
                   />
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 14px",
-                    background: yearlyEnabled ? "rgba(128,0,255,0.06)" : "rgba(255,255,255,0.015)",
-                    border: `1px solid ${yearlyEnabled ? "rgba(128,0,255,0.2)" : AD.cardB}`,
-                    borderRadius: 10,
-                  }}
-                >
+                <div style={toggleRowStyle(yearlyEnabled)}>
                   <div>
-                    <div style={{ fontFamily: P, fontSize: 13, fontWeight: 600, color: C.t1 }}>Yearly Billing</div>
+                    <div style={{ fontFamily: P, fontSize: 12, fontWeight: 600, color: C.t1 }}>Yearly Billing</div>
                     <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>
                       {yearlyEnabled
-                        ? "Users can subscribe to this plan on a yearly cycle."
-                        : "Yearly billing is hidden from the app for this plan."}
+                        ? "Users can subscribe on a yearly cycle."
+                        : "Yearly billing is hidden for this plan."}
                     </div>
                   </div>
                   <ATog on={yearlyEnabled} onChange={setYearlyEnabled} />
                 </div>
+
+                <div style={toggleRowStyle(isActive)}>
+                  <div>
+                    <div style={{ fontFamily: P, fontSize: 12, fontWeight: 600, color: C.t1 }}>Plan Active</div>
+                    <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>
+                      {isActive
+                        ? "Visible and available for new subscriptions."
+                        : "Hidden from new users."}
+                    </div>
+                  </div>
+                  <ATog on={isActive} onChange={setIsActive} />
+                </div>
               </div>
             </ACard>
 
-            <ACard style={{ padding: "24px 28px" }}>
-              <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1, marginBottom: 16, borderBottom: `1px solid ${AD.cardB}`, paddingBottom: 12 }}>
-                Signal Access Settings
-              </div>
+            <ACard style={{ padding: CARD_PAD }}>
+              <div style={cardTitleStyle}>Signal Access Settings</div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: FIELD_GAP }}>
                 <AIn
                   label="Max Signals Per Day"
                   placeholder="10"
@@ -365,9 +494,40 @@ export default function EditSubscriptionPlan() {
 
                 <div>
                   <div style={{ fontFamily: P, fontSize: 11, fontWeight: 600, color: C.tm, letterSpacing: "0.06em", marginBottom: 10 }}>
+                    ALLOWED CATEGORIES
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {SIGNAL_CATEGORY_OPTIONS.map((category) => {
+                      const enabled = selectedCategories.includes(category.value);
+                      return (
+                        <button
+                          key={category.value}
+                          type="button"
+                          onClick={() => toggleCategory(category.value)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: 100,
+                            border: `1px solid ${enabled ? C.brand : AD.inpB}`,
+                            background: enabled ? "rgba(128,0,255,0.12)" : AD.inp,
+                            color: enabled ? C.brand : C.tm,
+                            fontFamily: P,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontFamily: P, fontSize: 11, fontWeight: 600, color: C.tm, letterSpacing: "0.06em", marginBottom: 8 }}>
                     ALLOWED SIGNAL TYPES
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {signalTypeOptions.map((typeOption) => {
                       const enabled = selectedSignalTypes.some(
                         (type) => type.toLowerCase() === typeOption.key.toLowerCase(),
@@ -377,15 +537,9 @@ export default function EditSubscriptionPlan() {
                           key={typeOption.key}
                           onClick={() => toggleSignalType(typeOption.key)}
                           style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "10px 14px",
-                            background: enabled ? "rgba(128,0,255,0.08)" : "rgba(255,255,255,0.015)",
-                            border: `1px solid ${enabled ? "rgba(128,0,255,0.25)" : AD.cardB}`,
-                            borderRadius: 10,
+                            ...toggleRowStyle(enabled),
                             cursor: "pointer",
-                            opacity: enabled ? 1 : 0.55,
+                            opacity: enabled ? 1 : 0.6,
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -428,57 +582,82 @@ export default function EditSubscriptionPlan() {
               </div>
             </ACard>
 
-            {/* Live Preview Card */}
-            <ACard style={{ padding: "24px 28px", border: `1px solid ${staticColor}33`, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, background: staticColor }} />
-              <div style={{ fontFamily: M, fontSize: 10, color: C.td, letterSpacing: "0.12em", marginBottom: 14 }}>
-                CARD PREVIEW (STATIC THEME)
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: `${staticColor}20`, border: `1px solid ${staticColor}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
-                  {staticEmoji}
+            <ACard style={{ padding: CARD_PAD }}>
+              <div style={cardTitleStyle}>Premium Features & Support</div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { label: "Gold Signals", value: includesGoldSignals, onChange: setIncludesGoldSignals },
+                  { label: "Technical Analysis", value: includesTechnicalAnalysis, onChange: setIncludesTechnicalAnalysis },
+                  { label: "Market Sentiment", value: includesMarketSentiment, onChange: setIncludesMarketSentiment },
+                  { label: "Economic Calendar", value: includesEconomicCalendar, onChange: setIncludesEconomicCalendar },
+                ].map((item) => (
+                  <div key={item.label} style={toggleRowStyle(item.value)}>
+                    <span style={{ fontFamily: P, fontSize: 12, color: C.t1 }}>{item.label}</span>
+                    <ATog on={item.value} onChange={item.onChange} />
+                  </div>
+                ))}
+
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontFamily: P, fontSize: 11, fontWeight: 600, color: C.tm, letterSpacing: "0.06em", marginBottom: 6 }}>
+                    SUPPORT LEVEL
+                  </div>
+                  <select
+                    value={support}
+                    onChange={(e) => setSupport(e.target.value)}
+                    style={{
+                      width: "100%",
+                      background: AD.inp,
+                      border: `1px solid ${AD.inpB}`,
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      fontFamily: P,
+                      fontSize: 12,
+                      color: C.t1,
+                      outline: "none",
+                    }}
+                  >
+                    {SUPPORT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <div style={{ fontFamily: P, fontSize: 16, fontWeight: 700, color: C.t1 }}>{name || "Untitled Plan"}</div>
-                  <div style={{ fontFamily: M, fontSize: 16, fontWeight: 700, color: staticColor }}>${monthly || "0"} / month</div>
-                </div>
-              </div>
-              <div style={{ fontFamily: P, fontSize: 12, color: C.tm }}>
-                Includes {featurePoints.filter((f) => f.enabled).length} active feature points.
               </div>
             </ACard>
           </div>
 
-          {/* Right Column: Point-by-Point Feature Management */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <ACard style={{ padding: "24px 28px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `1px solid ${AD.cardB}`, paddingBottom: 12 }}>
+          {/* Right Column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: COL_GAP, minWidth: 0 }}>
+            <ACard style={{ padding: CARD_PAD }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, borderBottom: `1px solid ${AD.cardB}`, paddingBottom: 10, gap: 10 }}>
                 <div>
-                  <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1 }}>
+                  <div style={{ ...cardTitleStyle, marginBottom: 4, borderBottom: "none", paddingBottom: 0 }}>
                     Point-by-Point Features
                   </div>
-                  <div style={{ fontFamily: P, fontSize: 11, color: C.tm, marginTop: 2 }}>
-                    Click checkboxes to enable or disable features for this plan.
+                  <div style={{ fontFamily: P, fontSize: 11, color: C.tm }}>
+                    Enable or disable feature highlights for this plan.
                   </div>
                 </div>
                 <span
                   style={{
                     fontFamily: M,
-                    fontSize: 11,
+                    fontSize: 10,
                     color: C.brand,
                     background: "rgba(128,0,255,0.12)",
                     border: "1px solid rgba(128,0,255,0.25)",
-                    padding: "4px 10px",
+                    padding: "3px 8px",
                     borderRadius: 100,
                     fontWeight: 600,
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {featurePoints.filter((f) => f.enabled).length} Active Points
+                  {featurePoints.filter((f) => f.enabled).length} Active
                 </span>
               </div>
 
-              {/* Add Custom Feature (+ Button) */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <input
                   type="text"
                   value={newFeatureInput}
@@ -525,23 +704,16 @@ export default function EditSubscriptionPlan() {
                 </button>
               </div>
 
-              {/* Feature Points List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflowY: "auto", paddingRight: 4 }}>
+              {/* Feature Points List — page scrolls naturally, no inner cap */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {featurePoints.map((feat) => (
                   <div
                     key={feat.id}
                     onClick={() => toggleFeaturePoint(feat.id)}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "10px 14px",
-                      background: feat.enabled ? "rgba(128,0,255,0.08)" : "rgba(255,255,255,0.015)",
-                      border: `1px solid ${feat.enabled ? "rgba(128,0,255,0.25)" : AD.cardB}`,
-                      borderRadius: 10,
+                      ...toggleRowStyle(feat.enabled),
                       cursor: "pointer",
-                      transition: "all 0.15s",
-                      opacity: feat.enabled ? 1 : 0.45,
+                      opacity: feat.enabled ? 1 : 0.5,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -608,6 +780,25 @@ export default function EditSubscriptionPlan() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </ACard>
+
+            <ACard style={{ padding: CARD_PAD, border: `1px solid ${staticColor}33`, position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: staticColor }} />
+              <div style={{ fontFamily: M, fontSize: 10, color: C.td, letterSpacing: "0.1em", marginBottom: 10 }}>
+                CARD PREVIEW
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${staticColor}20`, border: `1px solid ${staticColor}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+                  {staticEmoji}
+                </div>
+                <div>
+                  <div style={{ fontFamily: P, fontSize: 15, fontWeight: 700, color: C.t1 }}>{name || "Untitled Plan"}</div>
+                  <div style={{ fontFamily: M, fontSize: 14, fontWeight: 700, color: staticColor }}>${monthly || "0"} / month</div>
+                </div>
+              </div>
+              <div style={{ fontFamily: P, fontSize: 11, color: C.tm }}>
+                {featurePoints.filter((f) => f.enabled).length} active features · {selectedSignalTypes.length} signal types · {selectedCategories.length} categories
               </div>
             </ACard>
           </div>
