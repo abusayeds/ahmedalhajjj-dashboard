@@ -331,7 +331,7 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
                 Standard Free Trial Configuration
               </div>
               <div style={{ fontFamily: P, fontSize: 12, color: C.tm }}>
-                Set free trial period for all new signups after the first promo users limit.
+                Set the 2-day trial for users registered after the first {promoLimit} accounts.
               </div>
             </div>
             <ATog
@@ -386,7 +386,7 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, position: "relative", zIndex: 1 }}>
             <div>
               <div style={{ fontFamily: P, fontSize: 16, fontWeight: 700, color: C.t1, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-                <Sparkles size={16} color={C.gold} /> First N Users Free Access Offer
+                <Sparkles size={16} color={C.gold} /> First {promoLimit} Registered Users (1 Month Free)
               </div>
               <div style={{ fontFamily: P, fontSize: 12, color: C.tm }}>
                 Configure number of initial users and free access duration dynamically.
@@ -464,7 +464,7 @@ export default function ASubscriptions({ onNavigate }: { onNavigate?: (s: string
           <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 12, padding: "14px 16px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ fontFamily: P, fontSize: 12, color: C.tm }}>
-                Real Registered Claimed: <strong>{claimedCount}</strong> / {promoLimit} Users
+                Registered users in slots #1–{promoLimit}: <strong>{claimedCount}</strong> / {promoLimit}
               </span>
               <span style={{ fontFamily: M, fontSize: 12, color: C.gold, fontWeight: 700 }}>
                 {promoProgressPercent}%

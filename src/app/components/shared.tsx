@@ -48,6 +48,39 @@ export type SignalData = {
   status: string; pub: string; signalDate?: string; scheduledAt?: string;
 };
 
+export const SIGNAL_CATEGORY_OPTIONS = [
+  { value: "Forex", label: "Forex" },
+  { value: "Crypto", label: "Crypto" },
+  { value: "Commodity", label: "Commodity" },
+  { value: "Index", label: "Index" },
+] as const;
+
+export type SignalCategory = (typeof SIGNAL_CATEGORY_OPTIONS)[number]["value"];
+
+export const normalizeSignalCategory = (value?: string): SignalCategory => {
+  const raw = String(value || "").trim();
+  const lower = raw.toLowerCase();
+  if (lower === "cryptocurrency" || lower === "crypto") return "Crypto";
+  if (lower === "gold" || lower === "commodity") return "Commodity";
+  if (lower === "forex") return "Forex";
+  if (lower === "index") return "Index";
+  const match = SIGNAL_CATEGORY_OPTIONS.find(
+    (item) => item.value.toLowerCase() === lower,
+  );
+  return match?.value || "Forex";
+};
+
+export const getSignalCategoryLabel = (value?: string) => {
+  const normalized = normalizeSignalCategory(value);
+  return (
+    SIGNAL_CATEGORY_OPTIONS.find((item) => item.value === normalized)?.label ||
+    normalized
+  );
+};
+
+export const signalCategorySelectOptions = () =>
+  SIGNAL_CATEGORY_OPTIONS.map((item) => ({ l: item.label, v: item.value }));
+
 export const SIGNAL_TYPE_OPTIONS = [
   { l: "Scalp", v: "Scalp" },
   { l: "Swing Trade", v: "Swing" },

@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  C, P, M, AD, APrimary, AGhost, AIn, ATa, ASel, AModal, ACard, CTooltip, SCard, SIGNAL_TYPE_OPTIONS,
+  C, P, M, AD, APrimary, AGhost, AIn, ATa, ASel, AModal, ACard, CTooltip, SCard, SIGNAL_TYPE_OPTIONS, signalCategorySelectOptions,
 } from "./shared";
 import { useToast } from "./SuccessToast";
 import { useCreateSignalMutation } from "../../store/api/signalApi";
@@ -429,7 +429,7 @@ export default function ADashboard() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13 }}>
           <AIn label="Asset / Pair" placeholder="e.g. BTC/USDT" value={sf.asset} onChange={(v) => setSf({ ...sf, asset: v })} />
-          <ASel label="Category" value={sf.cat} onChange={(v) => setSf({ ...sf, cat: v })} opts={[{ l: "Forex", v: "Forex" }, { l: "Cryptocurrency", v: "Crypto" }, { l: "Commodity", v: "Commodity" }, { l: "Index", v: "Index" }]} />
+          <ASel label="Category" value={sf.cat} onChange={(v) => setSf({ ...sf, cat: v })} opts={signalCategorySelectOptions()} />
           <ASel label="Signal Type" value={sf.type} onChange={(v) => setSf({ ...sf, type: v })} opts={signalTypeOptions} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 13 }}>

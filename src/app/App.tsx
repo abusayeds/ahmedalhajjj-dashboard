@@ -563,7 +563,7 @@ export default function App() {
           onChangePassword={() => setShowChangePassword(true)}
           onLogout={() => dispatch(logout())}
         />
-        <div className="a-main a-section" style={{ flex: 1, overflowY: "auto" }} key={location.pathname}>
+        <div className="a-main a-section" style={{ flex: 1, overflowY: "auto", minHeight: 0 }} key={location.pathname}>
           <Routes>
             <Route path="/" element={<ADashboard />} />
             <Route path="/dashboard" element={<ADashboard />} />
