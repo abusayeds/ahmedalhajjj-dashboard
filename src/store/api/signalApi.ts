@@ -43,11 +43,13 @@ export interface SignalPayload {
 
 export const signalApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getSignals: builder.query<SignalListResponse, { status?: string; searchTerm?: string } | void>({
+    getSignals: builder.query<SignalListResponse, { status?: string; searchTerm?: string; fromDate?: string; toDate?: string } | void>({
       query: (params) => {
         const search = new URLSearchParams();
         if (params?.status && params.status !== "All") search.set("status", params.status);
         if (params?.searchTerm) search.set("searchTerm", params.searchTerm);
+        if (params?.fromDate) search.set("fromDate", params.fromDate);
+        if (params?.toDate) search.set("toDate", params.toDate);
         const qs = search.toString();
         return {
           url: `/api/v1/signal${qs ? `?${qs}` : ""}`,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Zap, Plus, Pencil, Trash2, Search, RefreshCw, Download,
+  Zap, Plus, Pencil, Trash2, Search, RefreshCw, X,
   FileText, Check, ChevronLeft, ChevronRight, Copy, Archive, Send, Calendar, Settings2, Lock,
 } from "lucide-react";
 import {
@@ -12,6 +12,7 @@ import { ConfirmDeleteModal, ConfirmActionModal } from "./ConfirmDeleteModal";
 import { useToast } from "./SuccessToast";
 import {
   mapApiSignal,
+  type SignalPayload,
   useArchiveSignalMutation,
   useCloseSignalMutation,
   useCreateSignalMutation,
@@ -138,22 +139,22 @@ const toPayload = (
   statusOverride?: string,
   typeOptions: ReadonlyArray<{ l: string; v: string }> = SIGNAL_TYPE_OPTIONS,
   options?: { setSignalDate?: boolean },
-) => {
+): SignalPayload => {
   const status = statusOverride || form.status;
-  const payload = {
-  asset: form.asset.trim(),
-  category: form.cat,
-  type: normalizeSignalType(form.type, typeOptions),
-  direction: form.dir as "BUY" | "SELL",
-  entry: form.entry.trim(),
-  sl: form.sl.trim(),
-  tp1: form.tp1.trim(),
-  tp2: form.tp2.trim() || undefined,
-  tp3: form.tp3.trim() || undefined,
-  notes: form.notes.trim() || undefined,
-  status,
-  scheduledAt: form.schedule ? new Date(form.schedule).toISOString() : undefined,
-  } as Record<string, unknown>;
+  const payload: SignalPayload = {
+    asset: form.asset.trim(),
+    category: form.cat,
+    type: normalizeSignalType(form.type, typeOptions),
+    direction: form.dir as "BUY" | "SELL",
+    entry: form.entry.trim(),
+    sl: form.sl.trim(),
+    tp1: form.tp1.trim(),
+    tp2: form.tp2.trim() || undefined,
+    tp3: form.tp3.trim() || undefined,
+    notes: form.notes.trim() || undefined,
+    status,
+    scheduledAt: form.schedule ? new Date(form.schedule).toISOString() : undefined,
+  };
 
   if (options?.setSignalDate !== false && status === "Active") {
     payload.signalDate = dateInputToIso(form.signalDate);
@@ -248,6 +249,8 @@ export default function ASignals() {
   const { showToast } = useToast();
   const [filter, setFilter] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [pubModal, setPubModal] = useState(false);
   const [typesModal, setTypesModal] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
@@ -266,6 +269,8 @@ export default function ASignals() {
   const { data, isLoading, isFetching, refetch } = useGetSignalsQuery({
     status: filter,
     searchTerm: searchTerm || undefined,
+    fromDate: fromDate || undefined,
+    toDate: toDate || undefined,
   });
   const { data: signalTypesData, isLoading: typesLoading } = useGetSignalTypesQuery();
   const [createSignalType, { isLoading: creatingType }] = useCreateSignalTypeMutation();
@@ -429,9 +434,9 @@ export default function ASignals() {
       </div>
     </div>
 
-    <ACard style={{ padding: "20px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 9, padding: "8px 14px", width: 260 }}>
+    <ACard style={{ padding: "20px", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 9, padding: "8px 14px", width: 220 }}>
           <Search size={14} color={C.td} />
           <input
             placeholder="Search signals..."
@@ -439,6 +444,35 @@ export default function ASignals() {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ background: "none", border: "none", outline: "none", fontFamily: P, fontSize: 13, color: C.t1, width: "100%" }}
           />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 9, padding: "6px 10px" }}>
+          <Calendar size={14} color={C.td} />
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+            title="From date"
+            style={{ background: "none", border: "none", outline: "none", fontFamily: P, fontSize: 12, color: fromDate ? C.t1 : C.td, width: 124 }}
+          />
+          <span style={{ fontFamily: P, fontSize: 11, color: C.td }}>to</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            title="To date"
+            style={{ background: "none", border: "none", outline: "none", fontFamily: P, fontSize: 12, color: toDate ? C.t1 : C.td, width: 124 }}
+          />
+          {(fromDate || toDate) && (
+            <button
+              onClick={() => { setFromDate(""); setToDate(""); }}
+              title="Clear dates"
+              style={{ background: "none", border: "none", cursor: "pointer", display: "flex", padding: 2, color: C.td }}
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
         <div style={{ width: 1, height: 24, background: AD.cardB }} />
         <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.02)", padding: 6, borderRadius: 10, border: `1px solid rgba(255,255,255,0.04)` }}>
@@ -448,7 +482,6 @@ export default function ASignals() {
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         <AGhost icon={<Settings2 size={14} />} onClick={() => setTypesModal(true)}>Manage Types</AGhost>
         <AGhost icon={<RefreshCw size={14} />} onClick={() => refetch()}>Refresh</AGhost>
-        <AGhost icon={<Download size={14} />}>Export</AGhost>
         <APrimary onClick={() => { resetForm(); setPubModal(true); }} icon={<Plus size={14} />}>Publish Signal</APrimary>
       </div>
     </ACard>
@@ -461,7 +494,7 @@ export default function ASignals() {
           </div>
           {!isLoading && filtered.length === 0 && (
             <div style={{ padding: "48px 28px", textAlign: "center", fontFamily: P, fontSize: 14, color: C.td }}>
-              No signals found for this filter.
+              No signals found for this date or status filter.
             </div>
           )}
           {filtered.map((s, i) => <div key={s.id} className="a-row" style={{ display: "grid", gridTemplateColumns: COLS, padding: "24px 28px", borderBottom: i < filtered.length - 1 ? `1px solid ${AD.cardB}` : "none", alignItems: "center" }}>
