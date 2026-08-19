@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import {
-  Zap, Plus, Pencil, Trash2, Search, RefreshCw, X,
-  FileText, Check, ChevronLeft, ChevronRight, Copy, Archive, Send, Calendar, Settings2, Lock,
+  Plus, Pencil, Trash2, Search, RefreshCw, X,
+  Check, ChevronLeft, ChevronRight, Copy, Archive, Send, Calendar, Settings2, Lock,
 } from "lucide-react";
 import {
   C, P, M, AD, APrimary, AGhost, AIn, ATa, ASel, AModal, ACard, Chip, IconBtn,
@@ -62,7 +62,7 @@ const emptyForm = (): SignalForm => ({
   tp2: "",
   tp3: "",
   notes: "",
-  status: "Draft",
+  status: "Active",
   signalDate: getTodayDateInput(),
   schedule: getTodayDateTimeLocal(),
 });
@@ -218,6 +218,7 @@ function SignalFormFields({
                 { l: "Closed", v: "Closed" },
               ]
               : [
+                { l: "Publish Now", v: "Active" },
                 { l: "Draft (save only)", v: "Draft" },
                 { l: "Scheduled (publish later)", v: "Scheduled" },
               ]
@@ -236,7 +237,7 @@ function SignalFormFields({
       {mode === "create" && (
         <div style={{ background: "rgba(128,0,255,0.06)", border: "1px solid rgba(128,0,255,0.14)", borderRadius: 11, padding: "10px 14px" }}>
           <span style={{ fontFamily: P, fontSize: 11, color: C.t2, lineHeight: 1.5 }}>
-            Use <strong>Publish Signal</strong> to go live immediately. Choose Scheduled to publish later, or Save Draft to keep it private.
+            Choose <strong>Publish Now</strong> to go live immediately, <strong>Scheduled</strong> to publish later, or <strong>Draft</strong> to keep it private. Then press Submit.
           </span>
         </div>
       )}
@@ -353,20 +354,18 @@ export default function ASignals() {
     setDupTarget(s);
   };
 
-  const handleCreate = async (action: "draft" | "publish" | "schedule") => {
-    const requireSchedule = action === "schedule" || form.status === "Scheduled";
-    const error = validateForm(form, requireSchedule);
+  const handleCreate = async () => {
+    const status = form.status === "Scheduled"
+      ? "Scheduled"
+      : form.status === "Draft"
+        ? "Draft"
+        : "Active";
+
+    const error = validateForm(form, status === "Scheduled");
     if (error) {
       showToast(error, "error");
       return;
     }
-
-    const status =
-      action === "draft"
-        ? "Draft"
-        : action === "schedule" || form.status === "Scheduled"
-          ? "Scheduled"
-          : "Active";
 
     try {
       await createSignal(toPayload(form, status, typeOptionsForForm)).unwrap();
@@ -532,16 +531,11 @@ export default function ASignals() {
       </div>
     </ACard>
 
-    {pubModal && <AModal title="Publish New Signal" sub="Fill in the details below and publish or save as draft" onClose={() => setPubModal(false)} width={700}>
+    {pubModal && <AModal title="Create New Signal" sub="Fill in the details, choose Save As, then submit" onClose={() => setPubModal(false)} width={700}>
       <SignalFormFields form={form} setForm={setForm} mode="create" signalTypeOptions={typeOptionsForForm} />
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", paddingTop: 16 }}>
         <AGhost onClick={() => setPubModal(false)}>Cancel</AGhost>
-        <AGhost icon={<FileText size={13} />} loading={loading} onClick={() => handleCreate("draft")}>Save Draft</AGhost>
-        {form.status === "Scheduled" ? (
-          <APrimary icon={<Calendar size={13} />} loading={loading} onClick={() => handleCreate("schedule")}>Schedule Signal</APrimary>
-        ) : (
-          <APrimary icon={<Zap size={13} />} loading={loading} onClick={() => handleCreate("publish")}>Publish Signal</APrimary>
-        )}
+        <APrimary icon={<Check size={13} />} loading={loading} onClick={handleCreate}>Submit</APrimary>
       </div>
     </AModal>}
 
