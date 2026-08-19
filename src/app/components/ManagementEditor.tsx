@@ -1,7 +1,35 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Bold, Italic, Heading1, Heading2, List, ListOrdered, Quote, Code,
-  Edit3, Save, RefreshCw, Check, AlertCircle
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  Edit3,
+  Save,
+  RefreshCw,
+  Check,
+  AlertCircle,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Link,
+  Unlink,
+  Minus,
+  IndentIncrease,
+  IndentDecrease,
+  Undo2,
+  Redo2,
+  Eraser,
+  Pilcrow,
+  RemoveFormatting,
 } from "lucide-react";
 import { C, P, M, AD, APrimary, ACard } from "./shared";
 import { useToast } from "./SuccessToast";
@@ -14,6 +42,73 @@ interface ManagementEditorProps {
   subtitle: string;
 }
 
+const FONT_SIZES = [
+  { label: "Small", value: "2" },
+  { label: "Normal", value: "3" },
+  { label: "Large", value: "4" },
+  { label: "X-Large", value: "5" },
+  { label: "Huge", value: "6" },
+];
+
+const TEXT_COLORS = [
+  "#FFFFFF",
+  "#E2E8F0",
+  "#94A3B8",
+  "#C084FC",
+  "#60A5FA",
+  "#00D084",
+  "#F59E0B",
+  "#FF5A6B",
+];
+
+const HIGHLIGHT_COLORS = [
+  "transparent",
+  "#8000FF",
+  "#1E3A5F",
+  "#14532D",
+  "#78350F",
+  "#7F1D1D",
+  "#334155",
+];
+
+function ToolbarBtn({
+  title,
+  onClick,
+  children,
+  active,
+}: {
+  title: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      title={title}
+      style={{
+        padding: "6px 10px",
+        background: active ? "rgba(128,0,255,0.2)" : AD.inp,
+        border: `1px solid ${active ? C.brand : AD.inpB}`,
+        borderRadius: 6,
+        color: C.t1,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToolbarDivider() {
+  return <div style={{ width: 1, height: 20, background: AD.cardB, margin: "0 4px" }} />;
+}
+
 export default function ManagementEditor({ type, title, subtitle }: ManagementEditorProps) {
   const { showToast } = useToast();
   const { data, isLoading, isFetching, refetch, error } = useGetManagementQuery(type);
@@ -23,27 +118,57 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
   const [mode, setMode] = useState<"visual" | "html">("visual");
   const [savedSuccess, setSavedSuccess] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const loadedTypeRef = useRef<string | null>(null);
 
-  // Sync content when API data arrives
-  useEffect(() => {
-    if (data?.data?.description !== undefined) {
-      setContent(data.data.description || "");
-    }
-  }, [data]);
-
-  const handleFormat = (command: string, value: string | undefined = undefined) => {
-    document.execCommand(command, false, value);
+  const applyHtmlToEditor = (html: string) => {
     if (editorRef.current) {
-      setContent(editorRef.current.innerHTML);
+      editorRef.current.innerHTML = html;
     }
   };
 
-  const handleSave = async () => {
-    let finalContent = content;
-    if (mode === "visual" && editorRef.current) {
-      finalContent = editorRef.current.innerHTML;
-      setContent(finalContent);
+  useEffect(() => {
+    loadedTypeRef.current = null;
+    setMode("visual");
+  }, [type]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (loadedTypeRef.current === type) return;
+
+    const html = data?.data?.description || "";
+    setContent(html);
+    loadedTypeRef.current = type;
+    requestAnimationFrame(() => applyHtmlToEditor(html));
+  }, [type, isLoading, data?.data?.description]);
+
+  const focusEditor = () => {
+    if (editorRef.current) {
+      editorRef.current.focus();
     }
+  };
+
+  const handleFormat = (command: string, value?: string) => {
+    focusEditor();
+    document.execCommand(command, false, value);
+  };
+
+  const handleInsertLink = () => {
+    focusEditor();
+    const url = window.prompt("Enter link URL (https://...)", "https://");
+    if (!url) return;
+    handleFormat("createLink", url.trim());
+  };
+
+  const getEditorHtml = () => {
+    if (mode === "visual" && editorRef.current) {
+      return editorRef.current.innerHTML;
+    }
+    return content;
+  };
+
+  const handleSave = async () => {
+    const finalContent = getEditorHtml();
+    setContent(finalContent);
 
     if (!finalContent || !finalContent.trim()) {
       showToast("Content cannot be empty!", "warning");
@@ -62,9 +187,17 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
     }
   };
 
+  const handleRefresh = async () => {
+    loadedTypeRef.current = null;
+    const result = await refetch();
+    const html = result.data?.data?.description || "";
+    setContent(html);
+    loadedTypeRef.current = type;
+    requestAnimationFrame(() => applyHtmlToEditor(html));
+  };
+
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1100 }}>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
           <h2 style={{ fontFamily: P, fontSize: 22, fontWeight: 700, color: C.t1, margin: "0 0 6px", letterSpacing: "-0.4px" }}>
@@ -76,12 +209,20 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             disabled={isFetching}
             style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
-              background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 9,
-              fontFamily: P, fontSize: 12, color: C.t2, cursor: "pointer"
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "8px 14px",
+              background: AD.inp,
+              border: `1px solid ${AD.inpB}`,
+              borderRadius: 9,
+              fontFamily: P,
+              fontSize: 12,
+              color: C.t2,
+              cursor: "pointer",
             }}
           >
             <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} color={C.tm} /> Refresh
@@ -109,77 +250,180 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
       )}
 
       <ACard style={{ padding: 0, overflow: "hidden", border: `1px solid ${AD.cardB}` }}>
-        {/* Editor Toolbar */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: "rgba(255,255,255,0.02)", borderBottom: `1px solid ${AD.cardB}`, flexWrap: "wrap", gap: 10 }}>
-          {/* Formatting Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-            <button
-              onClick={() => handleFormat("bold")}
-              title="Bold"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            <ToolbarBtn title="Undo" onClick={() => handleFormat("undo")}>
+              <Undo2 size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Redo" onClick={() => handleFormat("redo")}>
+              <Redo2 size={14} />
+            </ToolbarBtn>
+            <ToolbarDivider />
+
+            <ToolbarBtn title="Bold" onClick={() => handleFormat("bold")}>
               <Bold size={14} />
-            </button>
-            <button
-              onClick={() => handleFormat("italic")}
-              title="Italic"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            </ToolbarBtn>
+            <ToolbarBtn title="Italic" onClick={() => handleFormat("italic")}>
               <Italic size={14} />
-            </button>
-            <div style={{ width: 1, height: 20, background: AD.cardB, margin: "0 4px" }} />
-            <button
-              onClick={() => handleFormat("formatBlock", "<h1>")}
-              title="Heading 1"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
+            </ToolbarBtn>
+            <ToolbarBtn title="Underline" onClick={() => handleFormat("underline")}>
+              <Underline size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Strikethrough" onClick={() => handleFormat("strikeThrough")}>
+              <Strikethrough size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Clear formatting" onClick={() => handleFormat("removeFormat")}>
+              <RemoveFormatting size={14} />
+            </ToolbarBtn>
+            <ToolbarDivider />
+
+            <select
+              title="Font size"
+              defaultValue="3"
+              onChange={(e) => handleFormat("fontSize", e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                padding: "6px 8px",
+                background: AD.inp,
+                border: `1px solid ${AD.inpB}`,
+                borderRadius: 6,
+                color: C.t1,
+                fontFamily: P,
+                fontSize: 11,
+                cursor: "pointer",
+              }}
             >
+              {FONT_SIZES.map((size) => (
+                <option key={size.value} value={size.value} style={{ background: "#110F20" }}>
+                  {size.label}
+                </option>
+              ))}
+            </select>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 6px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6 }}>
+              {TEXT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  title={`Text color ${color}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleFormat("foreColor", color)}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    background: color,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 3, padding: "4px 6px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6 }}>
+              {HIGHLIGHT_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  title="Highlight color"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleFormat("hiliteColor", color === "transparent" ? "#000000" : color)}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    background: color === "transparent" ? AD.bg : color,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
+            </div>
+            <ToolbarDivider />
+
+            <ToolbarBtn title="Paragraph" onClick={() => handleFormat("formatBlock", "p")}>
+              <Pilcrow size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Heading 1" onClick={() => handleFormat("formatBlock", "h1")}>
               <Heading1 size={14} />
-            </button>
-            <button
-              onClick={() => handleFormat("formatBlock", "<h2>")}
-              title="Heading 2"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            </ToolbarBtn>
+            <ToolbarBtn title="Heading 2" onClick={() => handleFormat("formatBlock", "h2")}>
               <Heading2 size={14} />
-            </button>
-            <div style={{ width: 1, height: 20, background: AD.cardB, margin: "0 4px" }} />
-            <button
-              onClick={() => handleFormat("insertUnorderedList")}
-              title="Bullet List"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            </ToolbarBtn>
+            <ToolbarBtn title="Heading 3" onClick={() => handleFormat("formatBlock", "h3")}>
+              <Heading3 size={14} />
+            </ToolbarBtn>
+            <ToolbarDivider />
+
+            <ToolbarBtn title="Align left" onClick={() => handleFormat("justifyLeft")}>
+              <AlignLeft size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Align center" onClick={() => handleFormat("justifyCenter")}>
+              <AlignCenter size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Align right" onClick={() => handleFormat("justifyRight")}>
+              <AlignRight size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Justify" onClick={() => handleFormat("justifyFull")}>
+              <AlignJustify size={14} />
+            </ToolbarBtn>
+            <ToolbarDivider />
+
+            <ToolbarBtn title="Bullet list" onClick={() => handleFormat("insertUnorderedList")}>
               <List size={14} />
-            </button>
-            <button
-              onClick={() => handleFormat("insertOrderedList")}
-              title="Numbered List"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            </ToolbarBtn>
+            <ToolbarBtn title="Numbered list" onClick={() => handleFormat("insertOrderedList")}>
               <ListOrdered size={14} />
-            </button>
-            <button
-              onClick={() => handleFormat("formatBlock", "<blockquote>")}
-              title="Quote"
-              style={{ padding: "6px 10px", background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 6, color: C.t1, cursor: "pointer" }}
-            >
+            </ToolbarBtn>
+            <ToolbarBtn title="Increase indent" onClick={() => handleFormat("indent")}>
+              <IndentIncrease size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Decrease indent" onClick={() => handleFormat("outdent")}>
+              <IndentDecrease size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Quote" onClick={() => handleFormat("formatBlock", "blockquote")}>
               <Quote size={14} />
-            </button>
+            </ToolbarBtn>
+            <ToolbarBtn title="Horizontal line" onClick={() => handleFormat("insertHorizontalRule")}>
+              <Minus size={14} />
+            </ToolbarBtn>
+            <ToolbarDivider />
+
+            <ToolbarBtn title="Insert link" onClick={handleInsertLink}>
+              <Link size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Remove link" onClick={() => handleFormat("unlink")}>
+              <Unlink size={14} />
+            </ToolbarBtn>
+            <ToolbarBtn title="Clear all" onClick={() => {
+              focusEditor();
+              if (editorRef.current) {
+                editorRef.current.innerHTML = "";
+              }
+            }}>
+              <Eraser size={14} />
+            </ToolbarBtn>
           </div>
 
-          {/* Mode Switcher */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: AD.inp, border: `1px solid ${AD.inpB}`, borderRadius: 8, padding: 3 }}>
             <button
               onClick={() => {
-                if (mode === "html" && editorRef.current) {
-                  editorRef.current.innerHTML = content;
-                }
                 setMode("visual");
+                requestAnimationFrame(() => applyHtmlToEditor(content));
               }}
               style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
                 background: mode === "visual" ? C.brand : "transparent",
                 color: mode === "visual" ? "#fff" : C.tm,
-                border: "none", borderRadius: 6, fontFamily: P, fontSize: 11, fontWeight: 600, cursor: "pointer"
+                border: "none",
+                borderRadius: 6,
+                fontFamily: P,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
               }}
             >
               <Edit3 size={13} /> Visual Editor
@@ -192,10 +436,18 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
                 setMode("html");
               }}
               style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "5px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
                 background: mode === "html" ? C.brand : "transparent",
                 color: mode === "html" ? "#fff" : C.tm,
-                border: "none", borderRadius: 6, fontFamily: P, fontSize: 11, fontWeight: 600, cursor: "pointer"
+                border: "none",
+                borderRadius: 6,
+                fontFamily: P,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
               }}
             >
               <Code size={13} /> HTML Source
@@ -203,7 +455,6 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
           </div>
         </div>
 
-        {/* Content Area */}
         {isLoading ? (
           <div style={{ padding: 60, textAlign: "center", color: C.tm, fontFamily: P, fontSize: 14 }}>
             <RefreshCw size={24} className="animate-spin" style={{ margin: "0 auto 12px", color: C.brand }} />
@@ -212,17 +463,11 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
         ) : mode === "visual" ? (
           <div
             ref={editorRef}
+            className="management-rich-editor"
             contentEditable
             suppressContentEditableWarning
-            onInput={() => {
-              if (editorRef.current) {
-                setContent(editorRef.current.innerHTML);
-              }
-            }}
-            dangerouslySetInnerHTML={{ __html: content }}
-            key={`${type}-${data?.data?.updatedAt || "loaded"}`}
             style={{
-              minHeight: 380,
+              minHeight: 420,
               padding: 24,
               fontFamily: P,
               fontSize: 14,
@@ -239,7 +484,7 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
             placeholder={`Enter HTML content for ${title}...`}
             style={{
               width: "100%",
-              minHeight: 380,
+              minHeight: 420,
               padding: 24,
               fontFamily: M,
               fontSize: 13,
@@ -254,6 +499,23 @@ export default function ManagementEditor({ type, title, subtitle }: ManagementEd
           />
         )}
       </ACard>
+
+      <style>{`
+        .management-rich-editor h1 { font-size: 1.75rem; font-weight: 700; margin: 0.75rem 0; }
+        .management-rich-editor h2 { font-size: 1.35rem; font-weight: 700; margin: 0.65rem 0; }
+        .management-rich-editor h3 { font-size: 1.1rem; font-weight: 600; margin: 0.55rem 0; }
+        .management-rich-editor p { margin: 0.5rem 0; }
+        .management-rich-editor blockquote {
+          margin: 0.75rem 0;
+          padding: 10px 14px;
+          border-left: 3px solid ${C.brand};
+          background: rgba(128,0,255,0.08);
+          border-radius: 0 8px 8px 0;
+        }
+        .management-rich-editor ul, .management-rich-editor ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+        .management-rich-editor a { color: ${C.brand}; text-decoration: underline; }
+        .management-rich-editor hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1rem 0; }
+      `}</style>
     </div>
   );
 }
