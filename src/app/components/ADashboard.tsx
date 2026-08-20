@@ -375,7 +375,7 @@ export default function ADashboard() {
                 {dashboard?.revenueSummary.changePercent || "0%"} this month
               </div>
             </div>
-            <AGhost icon={<Download size={14} />}>Export</AGhost>
+            {/* <AGhost icon={<Download size={14} />}>Export</AGhost> */}
           </div>
         </div>
         <div style={{ flex: 1, minHeight: 220 }}>
