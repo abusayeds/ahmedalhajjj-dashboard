@@ -267,7 +267,7 @@ export default function AUsers() {
           <AGhost icon={isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} onClick={() => refetch()}>
             Refresh
           </AGhost>
-          <AGhost icon={<Download size={14} />}>Export CSV</AGhost>
+          {/* <AGhost icon={<Download size={14} />}>Export CSV</AGhost> */}
         </div>
       </ACard>
 
